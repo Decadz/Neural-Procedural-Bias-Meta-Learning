@@ -1,0 +1,198 @@
+import sys, os
+sys.path.append(os.getcwd())
+
+from experiments.resources import *
+from source import *
+
+import sklearn.model_selection
+import argparse
+import torch
+import random
+import numpy
+import time
+import yaml
+
+# Use the GPU/CUDA when available, else use the CPU.
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# Getting the experiments directory for loading and saving.
+directory = os.path.dirname(os.path.abspath(__file__)) + "/"
+
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+
+# ============================================================
+# Parsing arguments to construct experiments.
+# ============================================================
+
+parser = argparse.ArgumentParser(description="Experiment Runner")
+
+# Experiment settings.
+parser.add_argument("--dataset", required=True, type=str)
+parser.add_argument("--model", required=True, type=str)
+parser.add_argument("--seeds", required=True, type=int, nargs="+")
+parser.add_argument("--device", required=False, type=str)
+
+# Registering all optional configuration hyper-parameters.
+register_configurations(parser)
+
+# Retrieving the dictionary of arguments.
+args, args_unknown = parser.parse_known_args()
+
+if args.device is not None:
+    device = args.device
+
+if args.fast:  # Makes code non-deterministic (but faster).
+    torch.backends.cudnn.deterministic = False
+    torch.backends.cudnn.benchmark = True
+
+# ============================================================
+# Constructing and executing experiments.
+# ============================================================
+
+
+def _run_experiment(dataset, model, config, random_state):
+
+    # Setting the reproducibility seed in PyTorch.
+    if random_state is not None:
+        torch.cuda.manual_seed_all(random_state)
+        torch.cuda.manual_seed(random_state)
+        torch.manual_seed(random_state)
+        numpy.random.seed(random_state)
+        random.seed(random_state)
+
+    # Generating the custom dataset object.
+    training, validation, testing = dataset(device=device, **config)
+
+    # Defining the output results directory and file name.
+    res_directory = directory + config["output_path"]
+    file_name = "transfer-" + args.dataset + "-" + args.model + "-" + str(random_state)
+
+    print("transfer", args.dataset, args.model, "seed", str(random_state), "started")
+
+    # Creating a dictionary for recording experiment results.
+    results = {"start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}
+
+    # Creating the base model.
+    base_model = model(num_ways=training.dataset.num_classes).to(device)
+
+    # Generating training and testing indices for partitioning the dataset.
+    training_indices, testing_indices, _, _ = sklearn.model_selection.train_test_split(
+        range(len(training.dataset)), training.dataset.y,
+        stratify=training.dataset.y, test_size=0.2,
+    )
+
+    # Creating training and testing sets (union of all classes).
+    training_union = torch.utils.data.Subset(training.dataset, training_indices)
+    testing_union = torch.utils.data.Subset(training.dataset, testing_indices)
+
+    # Creating the base model's *meta* optimizer.
+    init_optimizer = optimizer_archive[config["init_optimizer_name"]](
+        base_model.parameters(), **config["init_optimizer_settings"])
+
+    init_scheduler = scheduler_archive[config["init_scheduler_name"]](
+        init_optimizer, **config["init_scheduler_settings"])
+
+    transfer_history = backpropagation(
+        base_model, init_optimizer, init_scheduler, training_union,
+        gradient_steps=config["init_gradient_steps"],
+        batch_size=config["init_batch_size"],
+        loss_function=objective_archive[config["task_loss_function"]],
+        performance_metric=objective_archive[config["evaluation_metric"]],
+        device=device, **config
+    )
+
+    # Recording the learning meta-data.
+    results["test_time"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+
+    # Computing the final inference error rate of our trained model.
+    results["transfer_inference"] = evaluate(
+        model=base_model, task=testing_union, device=device,
+        performance_metric=objective_archive[config["evaluation_metric"]]
+    )
+
+    # Access the last layer of the base model.
+    old_output_layer = list(base_model.modules())[-1]
+
+    # Create a new dense/linear layer
+    new_output_layer = torch.nn.Linear(old_output_layer.in_features, config["num_ways"]).to(device)
+
+    # Replace the last layer with the new layer
+    base_model.output_layer = new_output_layer
+
+    # Saving the pretrained model.
+    #export_model(base_model, res_directory, args.dataset + "-" + args.model + "-" +
+    #             str(config["num_ways"]) + "way")
+
+    """
+    # Freezing the feature extractor of the base model.
+    for i, module in enumerate(base_model.encoder):
+        for param in module.parameters():
+            param.requires_grad = False
+    """
+
+    results["transfer_time"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+
+    # Creating the base model's *meta* optimizer.
+    meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
+        base_model.parameters(), **config["meta_optimizer_settings"])
+
+    # Creating the base model's *base* optimizer.
+    base_optimizer = optimizer_archive[config["base_optimizer_name"]](
+        base_model.parameters(), **config["base_optimizer_settings"])
+
+    # Performing the meta-training phase.
+    meta_training_history = meta_training(
+        base_model, meta_optimizer, base_optimizer, training, validation,
+        loss_function=objective_archive[config["task_loss_function"]],
+        performance_metric=objective_archive[config["evaluation_metric"]],
+        **config
+    )
+
+    # Recording the end of the meta-training phase.
+    results["end_time"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+
+    # Performing the meta-testing phase.
+    results["training_mean"], results["training_std"] = meta_testing(
+        base_model, base_optimizer, training,
+        loss_function=objective_archive[config["task_loss_function"]],
+        performance_metric=objective_archive[config["evaluation_metric"]],
+        **config
+    )
+    results["testing_mean"], results["testing_std"] = meta_testing(
+        base_model, base_optimizer, testing,
+        loss_function=objective_archive[config["task_loss_function"]],
+        performance_metric=objective_archive[config["evaluation_metric"]],
+        **config
+    )
+
+    # Recording the experiment configurations.
+    results["experiment_configuration"] = config.copy()
+
+    # Recording the training history.
+    results["meta_training_history"] = meta_training_history
+    results["transfer_history"] = transfer_history
+
+    # Exporting the results to a json file.
+    export_results(results, res_directory, file_name)
+    #export_model(base_model, res_directory, file_name)
+
+    print("transfer", args.dataset, args.model, "seed", str(random_state), "complete")
+
+
+# Opening the relevant configurations file.
+with open(dataset_archive[args.dataset]["config"]) as file:
+    config = yaml.safe_load(file)
+
+required_args = {"dataset", "model", "seeds", "device"}
+override_configurations(args, args_unknown, required_args, config)
+
+# Retrieving the function for the selected dataset.
+dataset_fn = dataset_archive[args.dataset]["data"]
+
+# Retrieving the function for the selected model.
+model_fn = model_archive[args.model]
+
+# Executing the experiments with the given arguments.
+for random_state in args.seeds:
+    _run_experiment(dataset_fn, model_fn, config, random_state)

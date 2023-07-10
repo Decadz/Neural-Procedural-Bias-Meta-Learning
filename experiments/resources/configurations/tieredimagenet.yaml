@@ -1,0 +1,44 @@
+# Few-Shot-Learning Settings.
+num_ways: 5
+num_shots: 5
+test_shots: 15
+test_tasks: 600
+
+# Meta Optimization used in Meta-Training.
+meta_gradient_steps: 60000
+meta_batch_size: 4
+meta_optimizer_name: "adam"
+meta_optimizer_settings:
+  lr: 0.001
+
+# Base Optimization used in Meta-Training.
+base_gradient_steps: 5
+base_optimizer_name: "sgd"
+base_optimizer_settings:
+  lr: 0.01
+  momentum: 0
+  nesterov: False
+  weight_decay: 0
+
+# Meta Transfer Learning (Initialization).
+init_gradient_steps: 200000
+init_batch_size: 128
+init_optimizer_name: "sgd"
+init_optimizer_settings:
+  lr: 0.1
+  momentum: 0.9
+  nesterov: True
+  weight_decay: 0.0005
+
+init_scheduler_name: "multistep"
+init_scheduler_settings:
+  milestones: [100000, 150000, 175000]
+  gamma: 0.1
+
+# Learning objective and performance metric.
+evaluation_metric: "multierrorrate"
+task_loss_function: "celoss"
+
+# Experiment Settings
+output_path: results/tieredimagenet/
+verbose: 2

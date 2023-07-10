@@ -1,1 +1,1 @@
-# Neural-Procedural-Bias-Meta-Learning
+# Neural Procedural Bias Meta-Learning
