@@ -31,7 +31,7 @@ def match_signature(func):
 
 dataset_archive = {
     "omniglot": {"data": Omniglot, "config": "experiments/resources/configurations/omniglot_config.yaml"},
-    "fc100": {"data": FC100, "config": "experiments/resources/configurations/fc100.yaml"},
+    "fc100": {"data": FC100, "config": "experiments/resources/configurations/fc100_config.yaml"},
     "miniimagenet": {"data": MiniImagenet, "config": "experiments/resources/configurations/miniimagenet_config.yaml"},
     "tieredimagenet": {"data": TieredImagenet, "config": "experiments/resources/configurations/tieredimagenet.yaml"}
 }

@@ -76,7 +76,8 @@ def _run_experiment(dataset, model, config, random_state):
 
     # Defining the output results directory and file name.
     res_directory = directory + config["output_path"]
-    file_name = "maml-" + args.dataset + "-" + args.model + "-" + str(random_state)
+    file_name = "maml-" + args.dataset + "-" + args.model + "-" +\
+                str(config["num_ways"]) + "way-" + str(config["num_shots"]) + "shot-" + str(random_state)
 
     print("maml", args.dataset, args.model, "seed", str(random_state), "started")
 

@@ -66,7 +66,8 @@ def _run_experiment(dataset, model, config, random_state):
 
     # Defining the output results directory and file name.
     res_directory = directory + config["output_path"]
-    file_name = "transfer-" + args.dataset + "-" + args.model + "-" + str(random_state)
+    file_name = "transfer-" + args.dataset + "-" + args.model + "-" + \
+                str(config["num_ways"]) + "way-" + str(config["num_shots"]) + "shot-" + str(random_state)
 
     print("transfer", args.dataset, args.model, "seed", str(random_state), "started")
 
@@ -106,7 +107,11 @@ def _run_experiment(dataset, model, config, random_state):
     results["test_time"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
     # Computing the final inference error rate of our trained model.
-    results["transfer_inference"] = evaluate(
+    results["transfer_training_inference"] = evaluate(
+        model=base_model, task=training_union, device=device,
+        performance_metric=objective_archive[config["evaluation_metric"]]
+    )
+    results["transfer_testing_inference"] = evaluate(
         model=base_model, task=testing_union, device=device,
         performance_metric=objective_archive[config["evaluation_metric"]]
     )
