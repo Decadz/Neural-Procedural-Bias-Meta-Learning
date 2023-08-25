@@ -116,6 +116,9 @@ def _run_experiment(dataset, model, config, random_state):
         performance_metric=objective_archive[config["evaluation_metric"]]
     )
 
+    # Saving the pretrained model.
+    export_model(base_model, res_directory, args.dataset + "-" + args.model + "-" + str(random_state))
+
     # Access the last layer of the base model.
     old_output_layer = list(base_model.modules())[-1]
 
@@ -124,10 +127,6 @@ def _run_experiment(dataset, model, config, random_state):
 
     # Replace the last layer with the new layer
     base_model.output_layer = new_output_layer
-
-    # Saving the pretrained model.
-    #export_model(base_model, res_directory, args.dataset + "-" + args.model + "-" +
-    #             str(config["num_ways"]) + "way")
 
     """
     # Freezing the feature extractor of the base model.
@@ -180,7 +179,7 @@ def _run_experiment(dataset, model, config, random_state):
 
     # Exporting the results to a json file.
     export_results(results, res_directory, file_name)
-    #export_model(base_model, res_directory, file_name)
+    export_model(base_model, res_directory, file_name)
 
     print("transfer", args.dataset, args.model, "seed", str(random_state), "complete")
 
