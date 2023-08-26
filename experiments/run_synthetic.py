@@ -49,17 +49,17 @@ def main():
         # Plotting each of the loss landscapes, and then the trajectories on those landscapes.
         paths = [sgd_trajectory["true"], npbml_trajectory_1["loss"], npbml_trajectory_2["loss"]]
         loss_fns = [None, meta_network_1, meta_network_2]
-        plot_landscape_3d_multi(func, a, b, s, paths, loss_fns, save=True, file_name=path + "3d-multi-" + str(seed))
-        plot_landscape_2d_multi(func, a, b, s, paths, loss_fns, save=True, file_name=path + "2d-multi-" + str(seed))
-        animate_landscape_3d_multi(func, a, b, s, paths, loss_fns, save=True, file_name=path + "3d-multi-" + str(seed))
-        animate_landscape_2d_multi(func, a, b, s, paths, loss_fns, save=True, file_name=path + "2d-multi-" + str(seed))
+        plot_landscape_3d_multi(func, a, b, s, paths, loss_fns, save=False, file_name=path + "3d-multi-" + str(seed))
+        plot_landscape_2d_multi(func, a, b, s, paths, loss_fns, save=False, file_name=path + "2d-multi-" + str(seed))
+        animate_landscape_3d_multi(func, a, b, s, paths, loss_fns, save=False, file_name=path + "3d-multi-" + str(seed))
+        animate_landscape_2d_multi(func, a, b, s, paths, loss_fns, save=False, file_name=path + "2d-multi-" + str(seed))
 
         # Plotting the true landscapes, and then the trajectories on that single landscapes.
         paths = [sgd_trajectory["true"], npbml_trajectory_1["true"], npbml_trajectory_2["true"]]
-        plot_landscape_3d_single(func, a, b, s, paths, save=True, file_name=path + "3d-single-" + str(seed))
-        plot_landscape_2d_single(func, a, b, s, paths, save=True, file_name=path + "2d-single-" + str(seed))
-        animate_landscape_3d_single(func, a, b, s, paths, save=True, file_name=path + "3d-single-" + str(seed))
-        animate_landscape_2d_single(func, a, b, s, paths, save=True, file_name=path + "2d-single-" + str(seed))
+        plot_landscape_3d_single(func, a, b, s, paths, save=False, file_name=path + "3d-single-" + str(seed))
+        plot_landscape_2d_single(func, a, b, s, paths, save=False, file_name=path + "2d-single-" + str(seed))
+        animate_landscape_3d_single(func, a, b, s, paths, save=False, file_name=path + "3d-single-" + str(seed))
+        animate_landscape_2d_single(func, a, b, s, paths, save=False, file_name=path + "2d-single-" + str(seed))
 
 
 # ============================================================
@@ -682,16 +682,16 @@ def clear_background(ax):
         # Remove axis labels
         ax.set_xlabel(''); ax.set_ylabel(''); ax.set_zlabel('');
 
-        # Setting the the background pane colour to white.
-        ax.w_xaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
-        ax.w_yaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
-        ax.w_zaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
+        # Setting the background pane colour to white.
+        ax.xaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
+        ax.yaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
+        ax.zaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
 
         # Hide axis spines
-        ax.w_xaxis.line.set_visible(False); ax.w_yaxis.line.set_visible(False); ax.w_zaxis.line.set_visible(False)
+        ax.xaxis.line.set_visible(False); ax.yaxis.line.set_visible(False); ax.zaxis.line.set_visible(False)
 
         # Remove ticks on the axis spines
-        ax.w_xaxis.set_ticklabels([]); ax.w_yaxis.set_ticklabels([]); ax.w_zaxis.set_ticklabels([])
+        ax.xaxis.set_ticklabels([]); ax.yaxis.set_ticklabels([]); ax.zaxis.set_ticklabels([])
     else:
         # Remove axis ticks and labels
         ax.set_xticks([]); ax.set_yticks([]);
