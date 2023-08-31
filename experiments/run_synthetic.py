@@ -15,19 +15,18 @@ def main():
         os.makedirs(path)
 
     # Setting the reproducibility seed in PyTorch.
-    torch.cuda.manual_seed_all(1)
-    torch.cuda.manual_seed(1)
-    torch.manual_seed(1)
-    random.seed(1)
+    torch.cuda.manual_seed_all(0)
+    torch.cuda.manual_seed(0)
+    torch.manual_seed(0)
+    random.seed(0)
 
     # Meta-learning the loss function, infusing extra information in two different ways.
-    maml_init = learned_initialization(func)
     warp_optimizer = learned_warp_optimizer(func)
     ml3_loss = learned_loss_function_1(func)
-    npbml_init, npbml_optimizer, npbml_loss = learned_procedural_biases(func)
+    npbml_optimizer, npbml_loss = learned_procedural_biases(func)
 
     # Performing the meta testing phase on the following seeds (selected because they look nice).
-    for seed in range(100):
+    for seed in range(50):
         print("Starting:", str(seed))
 
         # Setting the reproducibility seed in PyTorch.
@@ -43,37 +42,35 @@ def main():
         sgd_trajectory = gradient_descent(
             torch.tensor([x1, x2], requires_grad=True), func, a=a, b=b, s=s)
 
-        maml_trajectory = gradient_descent(maml_init, func, a=a, b=b, s=s)
-
         warp_trajectory = gradient_descent(
             torch.tensor([x1, x2], requires_grad=True), func, a=a, b=b, s=s, warp_fn=warp_optimizer)
 
         ml3_trajectory = gradient_descent(
             torch.tensor([x1, x2], requires_grad=True), func, a=a, b=b, s=s, loss_fn=ml3_loss)
 
-        npbml_trajectory = gradient_descent(torch.tensor([x1, x2], requires_grad=True), func, a=a, b=b, s=s,
-                                            warp_fn=None, loss_fn=npbml_loss)
+        npbml_trajectory = gradient_descent(
+            torch.tensor([x1, x2], requires_grad=True), func, a=a, b=b, s=s,
+            warp_fn=npbml_optimizer, loss_fn=npbml_loss)
 
         # Setting up the parameters for plotting different (multi) surfaces.
-        paths = [sgd_trajectory["true"], maml_trajectory["true"], warp_trajectory["warp"],
-                 ml3_trajectory["loss"], npbml_trajectory["loss"]]
-        loss_fns = [None, None, None, ml3_loss, npbml_loss]
-        optimizers = [None, None, warp_optimizer, None, None]
+        paths = [sgd_trajectory["true"],  warp_trajectory["warp"], ml3_trajectory["loss"], npbml_trajectory["loss"]]
+        loss_fns = [None, None, ml3_loss, npbml_loss]
+        optimizers = [None, warp_optimizer, None, npbml_optimizer]
 
         # Plotting each of the loss landscapes, and then the trajectories on those landscapes.
-        plot_landscape_3d_multi(func, a, b, s, paths, loss_fns, optimizers, True, path + "3d-multi-" + str(seed))
-        plot_landscape_2d_multi(func, a, b, s, paths, loss_fns, optimizers, True, path + "2d-multi-" + str(seed))
+        #plot_landscape_3d_multi(func, a, b, s, paths, loss_fns, optimizers, True, path + "3d-multi-" + str(seed))
+        #plot_landscape_2d_multi(func, a, b, s, paths, loss_fns, optimizers, True, path + "2d-multi-" + str(seed))
         animate_landscape_3d_multi(func, a, b, s, paths, loss_fns, optimizers, True, path + "3d-multi-" + str(seed))
-        animate_landscape_2d_multi(func, a, b, s, paths, loss_fns, optimizers, True, path + "2d-multi-" + str(seed))
+        #animate_landscape_2d_multi(func, a, b, s, paths, loss_fns, optimizers, True, path + "2d-multi-" + str(seed))
 
         # Setting up the parameters for plotting on the same true (single) surfaces.
-        paths = [sgd_trajectory["true"], maml_trajectory["true"], warp_trajectory["true"], ml3_trajectory["true"]]
+        paths = [sgd_trajectory["true"], warp_trajectory["true"], ml3_trajectory["true"], npbml_trajectory["true"], ]
 
         # Plotting the true landscapes, and then the trajectories on that single landscapes.
-        plot_landscape_3d_single(func, a, b, s, paths, True, path + "3d-single-" + str(seed))
-        plot_landscape_2d_single(func, a, b, s, paths, True, path + "2d-single-" + str(seed))
-        animate_landscape_3d_single(func, a, b, s, paths, True, path + "3d-single-" + str(seed))
-        animate_landscape_2d_single(func, a, b, s, paths, True, path + "2d-single-" + str(seed))
+        #plot_landscape_3d_single(func, a, b, s, paths, True, path + "3d-single-" + str(seed))
+        #plot_landscape_2d_single(func, a, b, s, paths, True, path + "2d-single-" + str(seed))
+        #animate_landscape_3d_single(func, a, b, s, paths, True, path + "3d-single-" + str(seed))
+        #animate_landscape_2d_single(func, a, b, s, paths, True, path + "2d-single-" + str(seed))
 
 
 # ============================================================
@@ -350,13 +347,11 @@ def learned_loss_function_2(func):
 
 def learned_procedural_biases(func):
 
-    learned_initialization = Model()
     learned_optimizer = OptimizerNetwork()
     learned_loss = LossNetwork()
 
     # Defining the outer optimizer for the meta-loss network.
     meta_param = [
-        {"params": learned_initialization.x, "lr": 0.001},
         {"params": learned_optimizer.parameters(), "lr": 0.001},
         {"params": learned_loss.parameters(), "lr": 0.001}
     ]
@@ -373,7 +368,6 @@ def learned_procedural_biases(func):
         for i in range(10):
 
             base_model = Model()
-            base_model.x = torch.nn.Parameter(learned_initialization.x.clone().detach())
             base_optimizer = torch.optim.SGD([base_model.x], lr=0.1)
 
             # Taking a predetermined number of inner steps before meta update.
@@ -399,7 +393,7 @@ def learned_procedural_biases(func):
         # Update meta-loss network weights (phi).
         meta_optimizer.step()
 
-    return learned_initialization.x, learned_optimizer, learned_loss
+    return learned_optimizer, learned_loss
 
 
 # ============================================================
@@ -858,15 +852,15 @@ def clear_background(ax):
         ax.set_xlabel(''); ax.set_ylabel(''); ax.set_zlabel('');
 
         # Setting the the background pane colour to white.
-        ax.w_xaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
-        ax.w_yaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
-        ax.w_zaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
+        ax.xaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
+        ax.yaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
+        ax.zaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
 
         # Hide axis spines
-        ax.w_xaxis.line.set_visible(False); ax.w_yaxis.line.set_visible(False); ax.w_zaxis.line.set_visible(False)
+        ax.xaxis.line.set_visible(False); ax.yaxis.line.set_visible(False); ax.zaxis.line.set_visible(False)
 
         # Remove ticks on the axis spines
-        ax.w_xaxis.set_ticklabels([]); ax.w_yaxis.set_ticklabels([]); ax.w_zaxis.set_ticklabels([])
+        ax.xaxis.set_ticklabels([]); ax.yaxis.set_ticklabels([]); ax.zaxis.set_ticklabels([])
     else:
         # Remove axis ticks and labels
         ax.set_xticks([]); ax.set_yticks([]);
