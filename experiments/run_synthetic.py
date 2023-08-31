@@ -15,17 +15,20 @@ def main():
         os.makedirs(path)
 
     # Setting the reproducibility seed in PyTorch.
-    torch.cuda.manual_seed_all(0)
-    torch.cuda.manual_seed(0)
-    torch.manual_seed(0)
-    random.seed(0)
+    torch.cuda.manual_seed_all(1)
+    torch.cuda.manual_seed(1)
+    torch.manual_seed(1)
+    random.seed(1)
 
     # Meta-learning the loss function, infusing extra information in two different ways.
-    meta_network_1 = learned_loss_function_1(func)
-    meta_network_2 = learned_loss_function_2(func)
+    maml_init = learned_initialization(func)
+    warp_optimizer = learned_warp_optimizer(func)
+    ml3_loss = learned_loss_function_1(func)
+    npbml_init, npbml_optimizer, npbml_loss = learned_procedural_biases(func)
 
     # Performing the meta testing phase on the following seeds (selected because they look nice).
-    for seed in [1, 2, 8, 10, 12, 14, 17, 23, 25, 33, 34, 42, 46]:
+    for seed in range(100):
+        print("Starting:", str(seed))
 
         # Setting the reproducibility seed in PyTorch.
         torch.cuda.manual_seed_all(seed)
@@ -40,26 +43,37 @@ def main():
         sgd_trajectory = gradient_descent(
             torch.tensor([x1, x2], requires_grad=True), func, a=a, b=b, s=s)
 
-        npbml_trajectory_1 = gradient_descent(
-            torch.tensor([x1, x2], requires_grad=True), func, a=a, b=b, s=s, loss_fn=meta_network_1)
+        maml_trajectory = gradient_descent(maml_init, func, a=a, b=b, s=s)
 
-        npbml_trajectory_2 = gradient_descent(
-            torch.tensor([x1, x2], requires_grad=True), func, a=a, b=b, s=s, loss_fn=meta_network_2)
+        warp_trajectory = gradient_descent(
+            torch.tensor([x1, x2], requires_grad=True), func, a=a, b=b, s=s, warp_fn=warp_optimizer)
+
+        ml3_trajectory = gradient_descent(
+            torch.tensor([x1, x2], requires_grad=True), func, a=a, b=b, s=s, loss_fn=ml3_loss)
+
+        npbml_trajectory = gradient_descent(torch.tensor([x1, x2], requires_grad=True), func, a=a, b=b, s=s,
+                                            warp_fn=None, loss_fn=npbml_loss)
+
+        # Setting up the parameters for plotting different (multi) surfaces.
+        paths = [sgd_trajectory["true"], maml_trajectory["true"], warp_trajectory["warp"],
+                 ml3_trajectory["loss"], npbml_trajectory["loss"]]
+        loss_fns = [None, None, None, ml3_loss, npbml_loss]
+        optimizers = [None, None, warp_optimizer, None, None]
 
         # Plotting each of the loss landscapes, and then the trajectories on those landscapes.
-        paths = [sgd_trajectory["true"], npbml_trajectory_1["loss"], npbml_trajectory_2["loss"]]
-        loss_fns = [None, meta_network_1, meta_network_2]
-        plot_landscape_3d_multi(func, a, b, s, paths, loss_fns, save=False, file_name=path + "3d-multi-" + str(seed))
-        plot_landscape_2d_multi(func, a, b, s, paths, loss_fns, save=False, file_name=path + "2d-multi-" + str(seed))
-        animate_landscape_3d_multi(func, a, b, s, paths, loss_fns, save=False, file_name=path + "3d-multi-" + str(seed))
-        animate_landscape_2d_multi(func, a, b, s, paths, loss_fns, save=False, file_name=path + "2d-multi-" + str(seed))
+        plot_landscape_3d_multi(func, a, b, s, paths, loss_fns, optimizers, True, path + "3d-multi-" + str(seed))
+        plot_landscape_2d_multi(func, a, b, s, paths, loss_fns, optimizers, True, path + "2d-multi-" + str(seed))
+        animate_landscape_3d_multi(func, a, b, s, paths, loss_fns, optimizers, True, path + "3d-multi-" + str(seed))
+        animate_landscape_2d_multi(func, a, b, s, paths, loss_fns, optimizers, True, path + "2d-multi-" + str(seed))
+
+        # Setting up the parameters for plotting on the same true (single) surfaces.
+        paths = [sgd_trajectory["true"], maml_trajectory["true"], warp_trajectory["true"], ml3_trajectory["true"]]
 
         # Plotting the true landscapes, and then the trajectories on that single landscapes.
-        paths = [sgd_trajectory["true"], npbml_trajectory_1["true"], npbml_trajectory_2["true"]]
-        plot_landscape_3d_single(func, a, b, s, paths, save=False, file_name=path + "3d-single-" + str(seed))
-        plot_landscape_2d_single(func, a, b, s, paths, save=False, file_name=path + "2d-single-" + str(seed))
-        animate_landscape_3d_single(func, a, b, s, paths, save=False, file_name=path + "3d-single-" + str(seed))
-        animate_landscape_2d_single(func, a, b, s, paths, save=False, file_name=path + "2d-single-" + str(seed))
+        plot_landscape_3d_single(func, a, b, s, paths, True, path + "3d-single-" + str(seed))
+        plot_landscape_2d_single(func, a, b, s, paths, True, path + "2d-single-" + str(seed))
+        animate_landscape_3d_single(func, a, b, s, paths, True, path + "3d-single-" + str(seed))
+        animate_landscape_2d_single(func, a, b, s, paths, True, path + "2d-single-" + str(seed))
 
 
 # ============================================================
@@ -73,24 +87,26 @@ def func(x, a, b, s):
            - b[2] * torch.exp(-(x[0] + a[2]) ** 2 - x[0] ** 2)
 
 
-def gradient_descent(x, func, a, b, s, loss_fn=None):
+def gradient_descent(x, func, a, b, s, warp_fn=None, loss_fn=None):
 
-    optimizer = torch.optim.SGD([x], lr=0.1)  # lr is the learning rate
-    true_trajectory, loss_trajectory = [], []
+    optimizer = torch.optim.SGD([x], lr=0.1)
+    true_trajectory, warp_trajectory, loss_trajectory = [], [], []
 
     for step in range(100):
 
-        if loss_fn is None:
-            loss = func(x, a=a, b=b, s=s)
-            true_trajectory.append([x[0].item(), x[1].item(), loss.item()])
-        else:
-            y = func(x, a=a, b=b, s=s)
-            loss = loss_fn(x, y, a, b, s)
-            true_trajectory.append([x[0].item(), x[1].item(), y.item()])
-            loss_trajectory.append([x[0].item(), x[1].item(), loss.item()])
+        y = func(x, a=a, b=b, s=s)
+        true_trajectory.append([x[0].item(), x[1].item(), y.item()])
+
+        if warp_fn is not None:
+            y = warp_fn(y)
+            warp_trajectory.append([x[0].item(), x[1].item(), y.item()])
+
+        if loss_fn is not None:
+            y = loss_fn(x, y, a, b, s)
+            loss_trajectory.append([x[0].item(), x[1].item(), y.item()])
 
         # Compute gradients
-        loss.backward()
+        y.backward()
 
         # Update tensor values based on gradients
         optimizer.step()
@@ -98,7 +114,7 @@ def gradient_descent(x, func, a, b, s, loss_fn=None):
         # Clear gradients for the next step
         optimizer.zero_grad()
 
-    return {"true": true_trajectory, "loss": loss_trajectory}
+    return {"true": true_trajectory, "warp": warp_trajectory, "loss": loss_trajectory}
 
 
 class LossNetwork(torch.nn.Module):
@@ -121,6 +137,24 @@ class LossNetwork(torch.nn.Module):
         return self.network(torch.cat((x, y, a, b, s), dim=0))
 
 
+class OptimizerNetwork(torch.nn.Module):
+
+    def __init__(self):
+        super(OptimizerNetwork, self).__init__()
+
+        # Defining the loss functions architecture.
+        self.network = torch.nn.Sequential(
+            torch.nn.Linear(1, 30),
+            torch.nn.Tanh(),
+            torch.nn.Linear(30, 30),
+            torch.nn.Tanh(),
+            torch.nn.Linear(30, 1)
+        )
+
+    def forward(self, y):
+        return self.network(y)
+
+
 class Model(torch.nn.Module):
 
     def __init__(self):
@@ -132,6 +166,91 @@ class Model(torch.nn.Module):
 
     def forward(self, func):
         return func(self.x, self.a, self.b, self.s)
+
+
+def learned_initialization(func):
+
+    meta_model = Model()
+
+    # Defining the outer optimizer for the meta-loss network.
+    meta_optimizer = torch.optim.Adam([meta_model.x], lr=0.001)
+
+    # Performing the offline initialization phase to learn the learned loss functions parameters (phi).
+    for step in range(200):
+
+        # Clearing the gradient cache.
+        meta_optimizer.zero_grad()
+
+        # For each training task in the task distribution.
+        for i in range(10):
+
+            base_model = Model()
+            base_model.x = torch.nn.Parameter(meta_model.x.clone().detach())
+            base_optimizer = torch.optim.SGD([base_model.x], lr=0.1)
+
+            # Taking a predetermined number of inner steps before meta update.
+            for inner_steps in range(10):
+
+                # Creating a differentiable optimizer and stateless models via PyTorch higher.
+                with higher.innerloop_ctx(base_model, base_optimizer, copy_initial_weights=False) as (fmodel, diffopt):
+
+                    y = fmodel(func)  # Calculating the loss at the given point.
+                    diffopt.step(y)  # Update base network weights (theta).
+
+                # Computing the task loss and updating the meta weights.
+                y = fmodel(func)  # Finding the loss wrt. meta (task) loss.
+                y.backward()  # Accumulates gradients wrt. to meta parameters.
+
+        print("step", step, ":", y.item())
+
+        # Update meta-loss network weights (phi).
+        meta_optimizer.step()
+
+    return meta_model.x
+
+
+def learned_warp_optimizer(func):
+
+    meta_network = OptimizerNetwork()
+
+    # Defining the outer optimizer for the meta-loss network.
+    meta_optimizer = torch.optim.Adam(meta_network.parameters(), lr=0.001)
+
+    # Performing the offline initialization phase to learn the learned loss functions parameters (phi).
+    for step in range(200):
+
+        # Clearing the gradient cache.
+        meta_optimizer.zero_grad()
+
+        # For each training task in the task distribution.
+        for i in range(10):
+
+            base_model = Model()
+            base_optimizer = torch.optim.SGD([base_model.x], lr=0.1)
+
+            # Taking a predetermined number of inner steps before meta update.
+            for inner_steps in range(10):
+
+                # Creating a differentiable optimizer and stateless models via PyTorch higher.
+                with higher.innerloop_ctx(base_model, base_optimizer, copy_initial_weights=False) as (fmodel, diffopt):
+
+                    y = fmodel(func)  # Calculating the loss at the given point.
+                    warp_y = meta_network(y)  # Warping the loss via a learned optimizer.
+                    diffopt.step(warp_y)  # Update base network weights (theta).
+
+                # Computing the task loss and updating the meta weights.
+                y = fmodel(func)  # Finding the loss wrt. meta (task) loss.
+                y.backward()  # Accumulates gradients wrt. to meta parameters.
+
+                base_model.x = torch.nn.Parameter(fmodel.x.clone().detach())
+                base_optimizer = torch.optim.SGD([base_model.x], lr=0.1)
+
+        print("step", step, ":", y.item())
+
+        # Update meta-loss network weights (phi).
+        meta_optimizer.step()
+
+    return meta_network
 
 
 def learned_loss_function_1(func):
@@ -229,12 +348,66 @@ def learned_loss_function_2(func):
     return meta_network
 
 
+def learned_procedural_biases(func):
+
+    learned_initialization = Model()
+    learned_optimizer = OptimizerNetwork()
+    learned_loss = LossNetwork()
+
+    # Defining the outer optimizer for the meta-loss network.
+    meta_param = [
+        {"params": learned_initialization.x, "lr": 0.001},
+        {"params": learned_optimizer.parameters(), "lr": 0.001},
+        {"params": learned_loss.parameters(), "lr": 0.001}
+    ]
+
+    meta_optimizer = torch.optim.Adam(meta_param, lr=0.001)
+
+    # Performing the offline initialization phase to learn the learned loss functions parameters (phi).
+    for step in range(200):
+
+        # Clearing the gradient cache.
+        meta_optimizer.zero_grad()
+
+        # For each training task in the task distribution.
+        for i in range(10):
+
+            base_model = Model()
+            base_model.x = torch.nn.Parameter(learned_initialization.x.clone().detach())
+            base_optimizer = torch.optim.SGD([base_model.x], lr=0.1)
+
+            # Taking a predetermined number of inner steps before meta update.
+            for inner_steps in range(10):
+
+                # Creating a differentiable optimizer and stateless models via PyTorch higher.
+                with higher.innerloop_ctx(base_model, base_optimizer, copy_initial_weights=False) as (fmodel, diffopt):
+
+                    y = fmodel(func)  # Calculating the loss at the given point.
+                    warp_y = learned_optimizer(y)  # Warping the loss via a learned optimizer.
+                    base_loss = learned_loss(fmodel.x, warp_y, fmodel.a, fmodel.b, fmodel.s)
+                    diffopt.step(base_loss)  # Update base network weights (theta).
+
+                # Computing the task loss and updating the meta weights.
+                y = fmodel(func)  # Finding the loss wrt. meta (task) loss.
+                y.backward()  # Accumulates gradients wrt. to meta parameters.
+
+                base_model.x = torch.nn.Parameter(fmodel.x.clone().detach())
+                base_optimizer = torch.optim.SGD([base_model.x], lr=0.1)
+
+        print("step", step, ":", y.item())
+
+        # Update meta-loss network weights (phi).
+        meta_optimizer.step()
+
+    return learned_initialization.x, learned_optimizer, learned_loss
+
+
 # ============================================================
 # Functions for generating 2D and 3D static visualizations.
 # ============================================================
 
 
-def plot_landscape_3d_multi(func, a, b, s, trajectories, loss_functions, save=False, file_name=""):
+def plot_landscape_3d_multi(func, a, b, s, trajectories, loss_functions, optimizers, save=False, file_name=""):
 
     # Generating the 3D plot.
     fig, axes = plt.subplots(
@@ -245,25 +418,32 @@ def plot_landscape_3d_multi(func, a, b, s, trajectories, loss_functions, save=Fa
     )
 
     # Colours to use for the surfaces and trajectories.
-    surface_colors = ["#7881c4", "#78b3c4", "#6fbc8b"]
-    path_colors = ["#3a3a3a", "#924444", "#ce5353"]
+    surface_colors = ["#ad67ca", "#7881c4", "#78b3c4", "#82b1aa", "#6fbc8b"]
+    path_colors = ["#3a3a3a", "#3a3a3a", "#3a3a3a", "#3a3a3a", "#3a3a3a"] # ["#3a3a3a", "#3a3a3a", "#3a3a3a", "#924444", "#ce5353"]
 
     # Create a grid of points
     x = torch.linspace(-3, 3, 300)  # X values
     y = torch.linspace(-3, 3, 300)  # Y values
     surface_X, surface_Y = torch.meshgrid(x, y)  # Create a grid from X and Y values
 
-    for i, (trajectory, loss_fn) in enumerate(zip(trajectories, loss_functions)):
+    for i, (trajectory, loss_function, optimizer) in enumerate(zip(trajectories, loss_functions, optimizers)):
 
-        if loss_fn is None:
-            surface_Z = func([surface_X, surface_Y], a=a, b=b, s=s)  # Compute the Z values (function values)
-        else:
-            Y = func([surface_X, surface_Y], a, b, s)
-            with torch.no_grad():
-                Z = []
-                for x1, x2, y in zip(surface_X.flatten(), surface_Y.flatten(), Y.flatten()):
-                    Z.append(loss_fn(torch.tensor([x1, x2]), torch.tensor([y]), a, b, s))
-            surface_Z = torch.tensor(Z).reshape(surface_X.shape)
+        surface_Z = func([surface_X, surface_Y], a=a, b=b, s=s).flatten()
+
+        if optimizer is not None:
+            surface_Z = optimizer(surface_Z.unsqueeze(1)).clone().detach().reshape(surface_X.size()).flatten()
+
+        if loss_function is not None:
+            surface_Z = loss_function.network(torch.cat((torch.cat((
+                surface_X.reshape(-1, 1), surface_Y.reshape(-1, 1)), dim=1),
+                surface_Z.unsqueeze(1),
+                a.unsqueeze(0).expand(surface_Z.size(0), -1),
+                b.unsqueeze(0).expand(surface_Z.size(0), -1),
+                s.unsqueeze(0).expand(surface_Z.size(0), -1),
+            ), dim=1))
+
+        # Reshaping and converting into the correct type.
+        surface_Z = surface_Z.reshape(surface_X.size()).detach().numpy()
 
         # Plotting the wireframe, i.e. loss landscape that we are optimizing over.
         axes[i].plot_wireframe(surface_X, surface_Y, surface_Z, linewidth=0.75,
@@ -297,7 +477,7 @@ def plot_landscape_3d_single(func, a, b, s, trajectories, save=False, file_name=
     fig, axes = plt.subplots(figsize=(10, 8), nrows=1, ncols=1, subplot_kw={"projection": "3d"})
 
     # Colours to use for the trajectories.
-    path_colors = ["#3a3a3a", "#924444", "#ce5353"]
+    path_colors = ["#3a3a3a", "#3a3a3a", "#3a3a3a", "#924444", "#ce5353"]
 
     # Create a grid of points
     x = torch.linspace(-3, 3, 300)  # X values
@@ -334,7 +514,7 @@ def plot_landscape_3d_single(func, a, b, s, trajectories, save=False, file_name=
         plt.show()
 
 
-def plot_landscape_2d_multi(func, a, b, s, trajectories, loss_functions, save=False, file_name=""):
+def plot_landscape_2d_multi(func, a, b, s, trajectories, loss_functions, optimizers, save=False, file_name=""):
 
     # Generating the 3D plot.
     fig, axes = plt.subplots(
@@ -342,24 +522,31 @@ def plot_landscape_2d_multi(func, a, b, s, trajectories, loss_functions, save=Fa
         nrows=1, ncols=len(trajectories)
     )
 
-    path_colors = ["#3a3a3a", "#924444", "#ce5353"]
+    path_colors = ["#3a3a3a", "#3a3a3a", "#3a3a3a", "#924444", "#ce5353"]
 
     # Create a grid of points
     x = torch.linspace(-3, 3, 300)  # X values
     y = torch.linspace(-3, 3, 300)  # Y values
     surface_X, surface_Y = torch.meshgrid(x, y)  # Create a grid from X and Y values
 
-    for i, (trajectory, loss_fn) in enumerate(zip(trajectories, loss_functions)):
+    for i, (trajectory, loss_function, optimizer) in enumerate(zip(trajectories, loss_functions, optimizers)):
 
-        if loss_fn is None:
-            surface_Z = func([surface_X, surface_Y], a=a, b=b, s=s)  # Compute the Z values (function values)
-        else:
-            Y = func([surface_X, surface_Y], a, b, s)
-            with torch.no_grad():
-                Z = []
-                for x1, x2, y in zip(surface_X.flatten(), surface_Y.flatten(), Y.flatten()):
-                    Z.append(loss_fn(torch.tensor([x1, x2]), torch.tensor([y]), a, b, s))
-            surface_Z = torch.tensor(Z).reshape(surface_X.shape)
+        surface_Z = func([surface_X, surface_Y], a=a, b=b, s=s).flatten()
+
+        if optimizer is not None:
+            surface_Z = optimizer(surface_Z.unsqueeze(1)).clone().detach().reshape(surface_X.size()).flatten()
+
+        if loss_function is not None:
+            surface_Z = loss_function.network(torch.cat((torch.cat((
+                surface_X.reshape(-1, 1), surface_Y.reshape(-1, 1)), dim=1),
+                surface_Z.unsqueeze(1),
+                a.unsqueeze(0).expand(surface_Z.size(0), -1),
+                b.unsqueeze(0).expand(surface_Z.size(0), -1),
+                s.unsqueeze(0).expand(surface_Z.size(0), -1),
+            ), dim=1))
+
+        # Reshaping and converting into the correct type.
+        surface_Z = surface_Z.reshape(surface_X.size()).detach().numpy()
 
         # Plotting the contour plot, i.e. 2d loss landscape that we are optimizing over.
         axes[i].contourf(surface_X, surface_Y, surface_Z, levels=50, cmap="GnBu", zorder=0)
@@ -386,7 +573,7 @@ def plot_landscape_2d_single(func, a, b, s, trajectories, save=False, file_name=
     fig, axes = plt.subplots(figsize=(8, 8), nrows=1, ncols=1)
 
     # Colours to use for the trajectories.
-    path_colors = ["#3a3a3a", "#924444", "#ce5353"]
+    path_colors = ["#3a3a3a", "#3a3a3a", "#3a3a3a", "#924444", "#ce5353"]
 
     # Create a grid of points
     x = torch.linspace(-3, 3, 300)  # X values
@@ -421,14 +608,14 @@ def plot_landscape_2d_single(func, a, b, s, trajectories, save=False, file_name=
 # ============================================================
 
 
-def animate_landscape_3d_single(func, a, b, s, trajectories, loss_function=None, save=False, file_name=""):
+def animate_landscape_3d_single(func, a, b, s, trajectories, save=False, file_name=""):
 
     # Generating the 3D plot.
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111, projection="3d")
 
     # Colours to use for the trajectories.
-    path_colors = ["#3a3a3a", "#924444", "#ce5353"]
+    path_colors = ["#3a3a3a", "#3a3a3a", "#3a3a3a", "#924444", "#ce5353"]
 
     # Create a grid of points
     x = torch.linspace(-3, 3, 300)  # X values uniformly spaced.
@@ -440,17 +627,7 @@ def animate_landscape_3d_single(func, a, b, s, trajectories, loss_function=None,
 
     # For each of the given trajectories generate a path.
     for trajectory in trajectories:
-
-        if loss_function is None:
-            surface_Z = func([surface_X, surface_Y], a=a, b=b, s=s)  # Compute the Z values (function values)
-        else:
-            fx = func([surface_X, surface_Y], a, b, s)
-            with torch.no_grad():
-                Z = []  # Generating the z position based on the position on the given loss function.
-                for x1, x2, f in zip(surface_X.flatten(), surface_Y.flatten(), fx.flatten()):
-                    Z.append(loss_function(torch.tensor([x1, x2]), torch.tensor([f]), a, b, s))
-            surface_Z = torch.tensor(Z).reshape(surface_X.shape)
-
+        surface_Z = func([surface_X, surface_Y], a=a, b=b, s=s)  # Compute the Z values (function values)
         trajectories_x.append(enforce_input_range([row[0] for row in trajectory]))
         trajectories_y.append(enforce_input_range([row[1] for row in trajectory]))
         trajectories_z.append([row[2] for row in trajectory])
@@ -481,7 +658,7 @@ def animate_landscape_3d_single(func, a, b, s, trajectories, loss_function=None,
         plt.show()
 
 
-def animate_landscape_3d_multi(func, a, b, s, trajectories, loss_functions, save=False, file_name=""):
+def animate_landscape_3d_multi(func, a, b, s, trajectories, loss_functions, optimizers, save=False, file_name=""):
 
     # Generating the 3D plot.
     fig, axes = plt.subplots(
@@ -492,8 +669,8 @@ def animate_landscape_3d_multi(func, a, b, s, trajectories, loss_functions, save
     )
 
     # Colours to use for the surfaces and trajectories.
-    surface_colors = ["#7881c4", "#78b3c4", "#6fbc8b"]
-    path_colors = ["#3a3a3a", "#924444", "#ce5353"]
+    surface_colors = ["#ad67ca", "#7881c4", "#78b3c4", "#82b1aa", "#6fbc8b"]
+    path_colors = ["#3a3a3a", "#3a3a3a", "#3a3a3a", "#3a3a3a", "#3a3a3a"]  # ["#3a3a3a", "#3a3a3a", "#3a3a3a", "#924444", "#ce5353"]
 
     # Create a grid of points
     x = torch.linspace(-3, 3, 300)  # X values uniformly spaced.
@@ -505,22 +682,26 @@ def animate_landscape_3d_multi(func, a, b, s, trajectories, loss_functions, save
     loss_surfaces = []
 
     # For each of the given trajectories generate a path.
-    for trajectory, loss_function in zip(trajectories, loss_functions):
+    for trajectory, loss_function, optimizer in zip(trajectories, loss_functions, optimizers):
 
-        if loss_function is None:
-            surface_Z = func([surface_X, surface_Y], a=a, b=b, s=s)  # Compute the Z values (function values)
-        else:
-            fx = func([surface_X, surface_Y], a, b, s)
-            with torch.no_grad():
-                Z = []  # Generating the z position based on the position on the given loss function.
-                for x1, x2, f in zip(surface_X.flatten(), surface_Y.flatten(), fx.flatten()):
-                    Z.append(loss_function(torch.tensor([x1, x2]), torch.tensor([f]), a, b, s))
-            surface_Z = torch.tensor(Z).reshape(surface_X.shape)
+        surface_Z = func([surface_X, surface_Y], a=a, b=b, s=s).flatten()
+
+        if optimizer is not None:
+            surface_Z = optimizer(surface_Z.unsqueeze(1)).clone().detach().reshape(surface_X.size()).flatten()
+
+        if loss_function is not None:
+            surface_Z = loss_function.network(torch.cat((torch.cat((
+                surface_X.reshape(-1, 1), surface_Y.reshape(-1, 1)), dim=1),
+                surface_Z.unsqueeze(1),
+                a.unsqueeze(0).expand(surface_Z.size(0), -1),
+                b.unsqueeze(0).expand(surface_Z.size(0), -1),
+                s.unsqueeze(0).expand(surface_Z.size(0), -1),
+            ), dim=1))
 
         trajectories_x.append(enforce_input_range([row[0] for row in trajectory]))
         trajectories_y.append(enforce_input_range([row[1] for row in trajectory]))
         trajectories_z.append([row[2] for row in trajectory])
-        loss_surfaces.append(surface_Z)
+        loss_surfaces.append(surface_Z.reshape(surface_X.size()).detach().numpy())
 
     def animate(i):
 
@@ -552,14 +733,14 @@ def animate_landscape_3d_multi(func, a, b, s, trajectories, loss_functions, save
         plt.show()
 
 
-def animate_landscape_2d_single(func, a, b, s, trajectories, loss_function=None, save=False, file_name=""):
+def animate_landscape_2d_single(func, a, b, s, trajectories, save=False, file_name=""):
 
     # Generating the 3D plot.
     fig = plt.figure(figsize=(8, 8))
     ax = fig.add_subplot(111)
 
     # Colours to use for the trajectories.
-    path_colors = ["#3a3a3a", "#924444", "#ce5353"]
+    path_colors = ["#3a3a3a", "#3a3a3a", "#3a3a3a", "#924444", "#ce5353"]
 
     # Create a grid of points
     x = torch.linspace(-3, 3, 300)  # X values uniformly spaced.
@@ -571,17 +752,7 @@ def animate_landscape_2d_single(func, a, b, s, trajectories, loss_function=None,
 
     # For each of the given trajectories generate a path.
     for trajectory in trajectories:
-
-        if loss_function is None:
-            surface_Z = func([surface_X, surface_Y], a=a, b=b, s=s)  # Compute the Z values (function values)
-        else:
-            fx = func([surface_X, surface_Y], a, b, s)
-            with torch.no_grad():
-                Z = []  # Generating the z position based on the position on the given loss function.
-                for x1, x2, f in zip(surface_X.flatten(), surface_Y.flatten(), fx.flatten()):
-                    Z.append(loss_function(torch.tensor([x1, x2]), torch.tensor([f]), a, b, s))
-            surface_Z = torch.tensor(Z).reshape(surface_X.shape)
-
+        surface_Z = func([surface_X, surface_Y], a=a, b=b, s=s)  # Compute the Z values (function values)
         trajectories_x.append(enforce_input_range([row[0] for row in trajectory]))
         trajectories_y.append(enforce_input_range([row[1] for row in trajectory]))
 
@@ -609,13 +780,13 @@ def animate_landscape_2d_single(func, a, b, s, trajectories, loss_function=None,
         plt.show()
 
 
-def animate_landscape_2d_multi(func, a, b, s, trajectories, loss_functions, save=False, file_name=""):
+def animate_landscape_2d_multi(func, a, b, s, trajectories, loss_functions, optimizers, save=False, file_name=""):
 
     # Generating the 3D plot.
     fig, axes = plt.subplots(figsize=(len(loss_functions) * 7, 6), nrows=1, ncols=len(loss_functions))
 
     # Colours to use for the trajectories.
-    path_colors = ["#3a3a3a", "#924444", "#ce5353"]
+    path_colors = ["#3a3a3a", "#3a3a3a", "#3a3a3a", "#924444", "#ce5353"]
 
     # Create a grid of points
     x = torch.linspace(-3, 3, 300)  # X values uniformly spaced.
@@ -627,21 +798,25 @@ def animate_landscape_2d_multi(func, a, b, s, trajectories, loss_functions, save
     loss_surfaces = []
 
     # For each of the given trajectories generate a path.
-    for trajectory, loss_function in zip(trajectories, loss_functions):
+    for trajectory, loss_function, optimizer in zip(trajectories, loss_functions, optimizers):
 
-        if loss_function is None:
-            surface_Z = func([surface_X, surface_Y], a=a, b=b, s=s)  # Compute the Z values (function values)
-        else:
-            fx = func([surface_X, surface_Y], a, b, s)
-            with torch.no_grad():
-                Z = []  # Generating the z position based on the position on the given loss function.
-                for x1, x2, f in zip(surface_X.flatten(), surface_Y.flatten(), fx.flatten()):
-                    Z.append(loss_function(torch.tensor([x1, x2]), torch.tensor([f]), a, b, s))
-            surface_Z = torch.tensor(Z).reshape(surface_X.shape)
+        surface_Z = func([surface_X, surface_Y], a=a, b=b, s=s).flatten()
+
+        if optimizer is not None:
+            surface_Z = optimizer(surface_Z.unsqueeze(1)).clone().detach().reshape(surface_X.size()).flatten()
+
+        if loss_function is not None:
+            surface_Z = loss_function.network(torch.cat((torch.cat((
+                surface_X.reshape(-1, 1), surface_Y.reshape(-1, 1)), dim=1),
+                surface_Z.unsqueeze(1),
+                a.unsqueeze(0).expand(surface_Z.size(0), -1),
+                b.unsqueeze(0).expand(surface_Z.size(0), -1),
+                s.unsqueeze(0).expand(surface_Z.size(0), -1),
+            ), dim=1))
 
         trajectories_x.append(enforce_input_range([row[0] for row in trajectory]))
         trajectories_y.append(enforce_input_range([row[1] for row in trajectory]))
-        loss_surfaces.append(surface_Z)
+        loss_surfaces.append(surface_Z.reshape(surface_X.size()).detach().numpy())
 
     def animate(i):
 
@@ -682,16 +857,16 @@ def clear_background(ax):
         # Remove axis labels
         ax.set_xlabel(''); ax.set_ylabel(''); ax.set_zlabel('');
 
-        # Setting the background pane colour to white.
-        ax.xaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
-        ax.yaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
-        ax.zaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
+        # Setting the the background pane colour to white.
+        ax.w_xaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
+        ax.w_yaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
+        ax.w_zaxis.set_pane_color((0.0, 0.0, 0.0, 0.0))
 
         # Hide axis spines
-        ax.xaxis.line.set_visible(False); ax.yaxis.line.set_visible(False); ax.zaxis.line.set_visible(False)
+        ax.w_xaxis.line.set_visible(False); ax.w_yaxis.line.set_visible(False); ax.w_zaxis.line.set_visible(False)
 
         # Remove ticks on the axis spines
-        ax.xaxis.set_ticklabels([]); ax.yaxis.set_ticklabels([]); ax.zaxis.set_ticklabels([])
+        ax.w_xaxis.set_ticklabels([]); ax.w_yaxis.set_ticklabels([]); ax.w_zaxis.set_ticklabels([])
     else:
         # Remove axis ticks and labels
         ax.set_xticks([]); ax.set_yticks([]);
