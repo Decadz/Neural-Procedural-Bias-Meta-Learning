@@ -2,3 +2,9 @@
 *.xml
 *.iml
 .DS_Store
+.vscode/sftp.json
+*.jpg
+*.png
+*.pyc
+*.tar
+*.pth

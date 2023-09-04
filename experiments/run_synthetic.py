@@ -4,6 +4,7 @@ import mpl_toolkits
 import higher
 import random
 import torch
+import tqdm
 import os
 
 
@@ -76,6 +77,8 @@ def main():
         plot_landscape_2d_single(func, a, b, s, paths, True, path + "2d-single-" + str(seed))
         animate_landscape_3d_single(func, a, b, s, paths, True, path + "3d-single-" + str(seed))
         animate_landscape_2d_single(func, a, b, s, paths, True, path + "2d-single-" + str(seed))
+
+        print("Finished:", str(seed))
 
 
 # ============================================================
@@ -186,7 +189,7 @@ def learned_initialization(func):
     meta_optimizer = torch.optim.Adam([meta_model.x], lr=0.001)
 
     # Performing meta-training over a number of meta-gradient steps.
-    for step in range(200):
+    for step in tqdm.tqdm(range(200), desc="MAML"):
 
         # Clearing the gradient cache.
         meta_optimizer.zero_grad()
@@ -211,8 +214,6 @@ def learned_initialization(func):
                 y = fmodel(func)  # Finding the loss wrt. meta (task) loss.
                 y.backward()  # Accumulates gradients wrt. to meta parameters.
 
-        print("step", step, ":", y.item())
-
         # Updating meta weights (phi).
         meta_optimizer.step()
 
@@ -235,8 +236,9 @@ def learned_warp_optimizer(func):
     # Defining the outer optimizer for the meta-loss network.
     meta_optimizer = torch.optim.Adam(meta_network.parameters(), lr=0.001)
 
+
     # Performing meta-training over a number of meta-gradient steps.
-    for step in range(200):
+    for step in tqdm.tqdm(range(200), desc="WarpGrad"):
 
         # Clearing the gradient cache.
         meta_optimizer.zero_grad()
@@ -264,8 +266,6 @@ def learned_warp_optimizer(func):
                 base_model.x = torch.nn.Parameter(fmodel.x.clone().detach())
                 base_optimizer = torch.optim.SGD([base_model.x], lr=0.1)
 
-        print("step", step, ":", y.item())
-
         # Updating meta weights (phi).
         meta_optimizer.step()
 
@@ -287,7 +287,7 @@ def learned_loss_function(func):
     meta_optimizer = torch.optim.Adam(meta_network.parameters(), lr=0.001)
 
     # Performing meta-training over a number of meta-gradient steps.
-    for step in range(200):
+    for step in tqdm.tqdm(range(200), desc="ML3"):
 
         # Clearing the gradient cache.
         meta_optimizer.zero_grad()
@@ -316,8 +316,6 @@ def learned_loss_function(func):
                 base_model.x = torch.nn.Parameter(fmodel.x.clone().detach())
                 base_optimizer = torch.optim.SGD([base_model.x], lr=0.1)
 
-        print("step", step, ":", y.item())
-
         # Updating meta weights (phi).
         meta_optimizer.step()
 
@@ -338,7 +336,7 @@ def learned_procedural_biases(func):
     meta_optimizer = torch.optim.Adam(meta_param, lr=0.001)
 
     # Performing meta-training over a number of meta-gradient steps.
-    for step in range(200):
+    for step in tqdm.tqdm(range(200), desc="NPBML"):
 
         # Clearing the gradient cache.
         meta_optimizer.zero_grad()
@@ -367,8 +365,6 @@ def learned_procedural_biases(func):
                 base_model.x = torch.nn.Parameter(fmodel.x.clone().detach())
                 base_optimizer = torch.optim.SGD([base_model.x], lr=0.1)
 
-        print("step", step, ":", y.item())
-
         # Updating meta weights (phi).
         meta_optimizer.step()
 
@@ -389,7 +385,7 @@ def learned_procedural_biases_extra(func):
     meta_optimizer = torch.optim.Adam(meta_param, lr=0.001)
 
     # Performing the offline initialization phase to learn the learned loss functions parameters (phi).
-    for step in range(200):
+    for step in tqdm.tqdm(range(200), desc="NPBML+Extra"):
 
         # Clearing the gradient cache.
         meta_optimizer.zero_grad()
@@ -422,8 +418,6 @@ def learned_procedural_biases_extra(func):
 
                 base_model.x = torch.nn.Parameter(fmodel.x.clone().detach())
                 base_optimizer = torch.optim.SGD([base_model.x], lr=0.1)
-
-        print("step", step, ":", y.item())
 
         # Updating meta weights (phi).
         meta_optimizer.step()

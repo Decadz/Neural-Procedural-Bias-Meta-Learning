@@ -7,7 +7,7 @@ def backpropagation(model, optimizer, scheduler, task, gradient_steps, batch_siz
 
     """
     A vanilla training loop which uses stochastic gradient descent to learn the
-    parameters of the base network, using the given pytorch loss function.
+    parameters of the base network.
 
     :param model: Base network used for the given task.
     :param optimizer: Backpropagation gradient optimizer.

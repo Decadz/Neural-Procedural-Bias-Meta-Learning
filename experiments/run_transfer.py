@@ -156,6 +156,9 @@ def _run_experiment(dataset, model, config, random_state):
     # Recording the end of the meta-training phase.
     results["end_time"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
+    # Exporting the learned model's state dictionary.
+    export_model(base_model, res_directory, file_name)
+
     # Performing the meta-testing phase.
     results["training_mean"], results["training_std"] = meta_testing(
         base_model, base_optimizer, training,
@@ -179,7 +182,6 @@ def _run_experiment(dataset, model, config, random_state):
 
     # Exporting the results to a json file.
     export_results(results, res_directory, file_name)
-    export_model(base_model, res_directory, file_name)
 
     print("transfer", args.dataset, args.model, "seed", str(random_state), "complete")
 

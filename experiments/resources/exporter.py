@@ -2,7 +2,7 @@ import torch
 import os
 
 
-def export_model(model, res_directory, file_name):
+def export_model(model, res_directory, file_name, save_state_dictionary=True):
 
     # Exporting the results to a json file.
     if not os.path.exists(res_directory):
@@ -11,7 +11,11 @@ def export_model(model, res_directory, file_name):
     if model is not None:  # Exporting the trained model to a .pth file.
         if not os.path.exists(res_directory + "models/"):
             os.makedirs(res_directory + "models/")
-        torch.save(model, res_directory + "models/" + file_name + ".pth")
+
+        if save_state_dictionary:
+            torch.save(model.state_dict(), res_directory + "models/" + file_name + ".pth")
+        else:
+            torch.save(model, res_directory + "models/" + file_name + ".pth")
 
 
 def export_results(results, res_directory, file_name):

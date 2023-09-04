@@ -8,8 +8,12 @@ import argparse
 import torch
 import random
 import numpy
-import time
 import yaml
+import json
+
+
+# python3 experiments/run_testing.py --method transfer --dataset miniimagenet --model conv4b --num_ways 5 --num_shots 1 --seeds 0 
+
 
 # Use the GPU/CUDA when available, else use the CPU.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -27,6 +31,7 @@ torch.backends.cudnn.benchmark = False
 parser = argparse.ArgumentParser(description="Experiment Runner")
 
 # Experiment settings.
+parser.add_argument("--method", required=True, type=str)
 parser.add_argument("--dataset", required=True, type=str)
 parser.add_argument("--model", required=True, type=str)
 parser.add_argument("--seeds", required=True, type=int, nargs="+")
@@ -63,65 +68,59 @@ def _run_experiment(dataset, model, config, random_state):
     # Generating the custom dataset object.
     training, validation, testing = dataset(device=device, **config)
 
-    # Creating the base model.
-    base_model = model(**config).to(device)
+    # Defining the output results directory and file name.
+    res_directory = directory + config["output_path"]
+    file_name = args.method + "-" + args.dataset + "-" + args.model + "-" + \
+                str(config["num_ways"]) + "way-" + str(config["num_shots"]) + "shot-" + str(random_state)
+    
+    # Loading the base model from the .pth file
+    base_model_loaded = torch.load(res_directory + "models/" + file_name + ".pth",
+                                   map_location=torch.device('cpu'))
 
-    # Creating the base model's *meta* optimizer.
-    meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
-        base_model.parameters(), **config["meta_optimizer_settings"])
+    # If the state dictionary was saved load into the base model.
+    if isinstance(base_model_loaded, dict):
+        print("loaded state dictionary")
+        base_model = model(**config).to(device)
+        base_model.load_state_dict(base_model_loaded)
+
+    # Else the whole model was saved, so overload base model object.
+    else:  
+        print("loaded full model")
+        base_model = base_model_loaded
 
     # Creating the base model's *base* optimizer.
     base_optimizer = optimizer_archive[config["base_optimizer_name"]](
         base_model.parameters(), **config["base_optimizer_settings"])
 
-    # Defining the output results directory and file name.
-    res_directory = directory + config["output_path"]
-    file_name = "maml-" + args.dataset + "-" + args.model + "-" + \
-                str(config["num_ways"]) + "way-" + str(config["num_shots"]) + "shot-" + str(random_state)
+    print(args.method, args.dataset, args.model, "seed", str(random_state), "started")
 
-    print("maml", args.dataset, args.model, "seed", str(random_state), "started")
-
-    # Creating a dictionary for recording experiment results.
-    results = {"start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}
-
-    # Performing the meta-training phase.
-    meta_training_history = meta_training(
-        base_model, meta_optimizer, base_optimizer, training, validation,
-        loss_function=objective_archive[config["task_loss_function"]],
-        performance_metric=objective_archive[config["evaluation_metric"]],
-        **config
-    )
-
-    # Recording the end of the meta-training phase.
-    results["end_time"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-
-    # Exporting the learned model's state dictionary.
-    export_model(base_model, res_directory, file_name)
+    # Loading the results ".json" file (dictionary) into memory.
+    with open(res_directory + file_name + ".json", "r") as json_file:
+        results = json.load(json_file)
 
     # Performing the meta-testing phase.
-    results["training_mean"], results["training_std"] = meta_testing(
+    training_mean, training_std = meta_testing(
         base_model, base_optimizer, training,
         loss_function=objective_archive[config["task_loss_function"]],
         performance_metric=objective_archive[config["evaluation_metric"]],
         **config
     )
-    results["testing_mean"], results["testing_std"] = meta_testing(
+    testing_mean, testing_std = meta_testing(
         base_model, base_optimizer, testing,
         loss_function=objective_archive[config["task_loss_function"]],
         performance_metric=objective_archive[config["evaluation_metric"]],
         **config
     )
 
-    # Recording the experiment configurations.
-    results["experiment_configuration"] = config.copy()
-
-    # Recording the training history.
-    results["meta_training_history"] = meta_training_history
+    print("training_mean", training_mean)
+    print("training_std", training_std)
+    print("testing_mean", testing_mean)
+    print("testing_std", testing_std)
 
     # Exporting the results to a json file.
-    export_results(results, res_directory, file_name)
+    #export_results(results, res_directory, file_name)
 
-    print("maml", args.dataset, args.model, "seed", str(random_state), "complete")
+    print(args.method, args.dataset, args.model, "seed", str(random_state), "complete")
 
 
 # Opening the relevant configurations file.
