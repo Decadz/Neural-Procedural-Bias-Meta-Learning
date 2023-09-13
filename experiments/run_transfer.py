@@ -145,9 +145,13 @@ def _run_experiment(dataset, model, config, random_state):
     base_optimizer = optimizer_archive[config["base_optimizer_name"]](
         base_model.parameters(), **config["base_optimizer_settings"])
 
+    # Creating the meta learning rate scheduler.
+    meta_scheduler = scheduler_archive[config["meta_scheduler_name"]](
+        meta_optimizer, **config["meta_scheduler_settings"])
+
     # Performing the meta-training phase.
     meta_training_history = meta_training(
-        base_model, meta_optimizer, base_optimizer, training, validation,
+        base_model, meta_optimizer, base_optimizer, meta_scheduler, training, validation,
         loss_function=objective_archive[config["task_loss_function"]],
         performance_metric=objective_archive[config["evaluation_metric"]],
         **config

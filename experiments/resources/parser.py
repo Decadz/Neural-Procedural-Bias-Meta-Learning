@@ -12,6 +12,7 @@ def register_configurations(parser):
     parser.add_argument("--meta_gradient_steps", required=False, type=int)
     parser.add_argument("--meta_optimizer_name", required=False, type=str)
     parser.add_argument("--meta_batch_size", required=False, type=int)
+    parser.add_argument("--meta_scheduler_name", required=False, type=str)
 
     # Base Optimization used in Meta-Training.
     parser.add_argument("--base_gradient_steps", required=False, type=int)
@@ -29,6 +30,7 @@ def register_configurations(parser):
     # Experiment Settings.
     parser.add_argument("--fast", required=False, default=False, type=lambda x: (str(x).lower() == 'true'))
     parser.add_argument("--output_path", required=False, type=str)
+    parser.add_argument("--input_channels", required=False, type=int)
     parser.add_argument("--verbose", required=False, type=int)
 
 
@@ -52,6 +54,10 @@ def override_configurations(args, args_unknown, required_args, config):
             if "meta_optimizer" in key:
                 key = key.replace("--meta_optimizer_", "")
                 config["meta_optimizer_settings"][key] = ast.literal_eval(arg)
+
+            elif "meta_scheduler" in key:
+                key = key.replace("--meta_scheduler_", "")
+                config["meta_scheduler_settings"][key] = ast.literal_eval(arg)
 
             elif "base_optimizer" in key:
                 key = key.replace("--base_optimizer_", "")

@@ -11,6 +11,11 @@ meta_optimizer_name: "adam"
 meta_optimizer_settings:
   lr: 0.001
 
+meta_scheduler_name: "cosine"
+meta_scheduler_settings:
+  T_max: 60000
+  eta_min: 0.00001
+
 # Base Optimization used in Meta-Training.
 base_gradient_steps: 5
 base_optimizer_name: "sgd"
@@ -41,4 +46,5 @@ task_loss_function: "celoss"
 
 # Experiment Settings
 output_path: results/tieredimagenet/
+input_channels: 3
 verbose: 2

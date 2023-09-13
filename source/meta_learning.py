@@ -3,7 +3,7 @@ import torch
 import tqdm
 
 
-def meta_training(base_model, meta_optimizer, base_optimizer, training, validation,
+def meta_training(base_model, meta_optimizer, base_optimizer, meta_scheduler, training, validation,
                   meta_gradient_steps, base_gradient_steps, meta_batch_size, loss_function,
                   performance_metric, verbose, **kwargs):
 
@@ -47,6 +47,10 @@ def meta_training(base_model, meta_optimizer, base_optimizer, training, validati
                 performance_history.append(performance_metric(yp_query, y_query).item())
 
         meta_optimizer.step()  # Update the meta parameters.
+
+        # Updating the meta-scheduler step count.
+        if meta_scheduler is not None:
+            meta_scheduler.step()
 
         # Updating training history and progression bar.
         training_history.append(sum(performance_history)/len(performance_history))

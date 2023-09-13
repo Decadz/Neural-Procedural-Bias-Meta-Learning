@@ -1,6 +1,6 @@
 
 # Importing the base-networks.
-from experiments.resources.models.conv import Conv4a, Conv4b
+from experiments.resources.models.conv import Conv4, WarpConv4
 from experiments.resources.models.resnet import ResNet12
 
 # Importing the meta-learning datasets.
@@ -38,8 +38,8 @@ dataset_archive = {
 
 
 model_archive = {
-    "conv4a": Conv4a,
-    "conv4b": Conv4b,
+    "conv4": Conv4,
+    "warpconv4": WarpConv4,
     "resnet": ResNet12
 }
 
@@ -60,5 +60,5 @@ optimizer_archive = {
 scheduler_archive = {
     "multistep": match_signature(torch.optim.lr_scheduler.MultiStepLR),
     "exponential": match_signature(torch.optim.lr_scheduler.ExponentialLR),
-    "cosineannealing": match_signature(torch.optim.lr_scheduler.CosineAnnealingWarmRestarts)
+    "cosine": match_signature(torch.optim.lr_scheduler.CosineAnnealingLR)
 }

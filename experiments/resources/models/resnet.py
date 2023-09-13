@@ -1,3 +1,4 @@
+import collections
 import torch
 
 
@@ -14,14 +15,14 @@ class ResNet12(torch.nn.Module):
         super(ResNet12, self).__init__()
         channels = [64, 128, 256, 512]  # wrn = [64, 160, 320, 640]
 
-        self.encoder = torch.nn.Sequential(
-            Block(input_channels, channels[0]),
-            Block(channels[0], channels[1]),
-            Block(channels[1], channels[2]),
-            Block(channels[2], channels[3]),
-            torch.nn.AdaptiveAvgPool2d(1),
-            torch.nn.Flatten()
-        )
+        self.encoder = torch.nn.Sequential(collections.OrderedDict([
+            ("block1", Block(input_channels, channels[0])),
+            ("block2", Block(channels[0], channels[1])),
+            ("block3", Block(channels[1], channels[2])),
+            ("block4", Block(channels[2], channels[3])),
+            ("adaPool", torch.nn.AdaptiveAvgPool2d(1)),
+            ("flatten", torch.nn.Flatten())
+        ]))
 
         self.output_layer = torch.nn.Linear(512, num_ways)
 
@@ -35,6 +36,20 @@ class ResNet12(torch.nn.Module):
     def forward(self, x):
         x = self.encoder(x)
         return self.output_layer(x)
+    
+    def adapt_parameters(self):
+        for param in self.encoder.block1.parameters():
+            yield param
+        for param in self.encoder.block3.parameters():
+            yield param
+        for param in self.output_layer.parameters():
+            yield param
+        
+    def warp_parameters(self):
+        for param in self.encoder.block2.parameters():
+            yield param
+        for param in self.encoder.block4.parameters():
+            yield param
 
 
 class Block(torch.nn.Module):
