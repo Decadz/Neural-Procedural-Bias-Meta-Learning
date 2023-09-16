@@ -29,6 +29,25 @@ def match_signature(func):
     return wrapped_func
 
 
+def kl_divergence(p_target, q_target):
+
+    """
+    Function for computing the Kullback-Leibler divergence given a target set 
+    of parameters and a bootstrapped target to minimize the divergce to.
+    """
+
+    # Turning the parameters into a flattened vector (tensor).
+    p = torch.nn.utils.parameters_to_vector(p_target.parameters())
+    q = torch.nn.utils.parameters_to_vector(q_target.parameters())
+
+    # Converting into a probability distribution.
+    p = torch.nn.functional.softmax(p, dim=0)
+    q = torch.nn.functional.softmax(q, dim=0)
+
+    # Computing the Kullback-Leibler divergence.
+    return (p * (p / q).log()).sum()
+
+
 dataset_archive = {
     "omniglot": {"data": Omniglot, "config": "experiments/resources/configurations/omniglot_config.yaml"},
     "fc100": {"data": FC100, "config": "experiments/resources/configurations/fc100_config.yaml"},
@@ -49,7 +68,8 @@ objective_archive = {
     "nllloss": torch.nn.NLLLoss(),
     "bceloss": torch.nn.BCELoss(),
     "mseloss": torch.nn.MSELoss(),
-    "celoss": torch.nn.CrossEntropyLoss()
+    "celoss": torch.nn.CrossEntropyLoss(),
+    "kldiv": kl_divergence
 }
 
 optimizer_archive = {

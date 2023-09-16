@@ -152,7 +152,9 @@ def _run_experiment(dataset, model, config, random_state):
     # Performing the meta-training phase.
     meta_training_history = meta_training(
         base_model, meta_optimizer, base_optimizer, meta_scheduler, training, validation,
-        loss_function=objective_archive[config["task_loss_function"]],
+        meta_loss_function=objective_archive[config["task_loss_function"]],
+        matching_function=objective_archive[config["matching_loss_function"]],
+        base_loss_function=objective_archive[config["task_loss_function"]],
         performance_metric=objective_archive[config["evaluation_metric"]],
         **config
     )

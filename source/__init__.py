@@ -22,3 +22,5 @@ from source.meta_learning import meta_testing
 from source.base_learning import backpropagation
 from source.base_learning import evaluate
 
+from source.loss_network import LearnedLossNetwork
+

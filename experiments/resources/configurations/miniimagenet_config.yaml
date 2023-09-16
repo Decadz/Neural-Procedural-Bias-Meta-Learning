@@ -18,6 +18,7 @@ meta_scheduler_settings:
 
 # Base Optimization used in Meta-Training.
 base_gradient_steps: 5
+base_bootstrapped_gradient_steps: 5
 base_optimizer_name: "sgd"
 base_optimizer_settings:
   lr: 0.01
@@ -43,6 +44,7 @@ init_scheduler_settings:
 # Learning objective and performance metric.
 evaluation_metric: "multierrorrate"
 task_loss_function: "celoss"
+matching_loss_function: "kldiv"
 
 # Experiment Settings
 output_path: results/miniimagenet/

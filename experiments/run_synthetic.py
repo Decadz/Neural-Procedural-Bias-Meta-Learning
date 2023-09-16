@@ -236,7 +236,6 @@ def learned_warp_optimizer(func):
     # Defining the outer optimizer for the meta-loss network.
     meta_optimizer = torch.optim.Adam(meta_network.parameters(), lr=0.001)
 
-
     # Performing meta-training over a number of meta-gradient steps.
     for step in tqdm.tqdm(range(200), desc="WarpGrad"):
 

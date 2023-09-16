@@ -1,11 +1,13 @@
 import higher
 import torch
 import tqdm
+import copy
 
 
 def meta_training(base_model, meta_optimizer, base_optimizer, meta_scheduler, training, validation,
-                  meta_gradient_steps, base_gradient_steps, meta_batch_size, loss_function,
-                  performance_metric, verbose, **kwargs):
+                  meta_gradient_steps, base_gradient_steps, base_bootstrapped_gradient_steps, meta_batch_size,
+                  meta_loss_function, base_loss_function, matching_function, performance_metric,
+                  verbose, **kwargs):
 
     # List for keeping track of the learning history.
     training_history = []
@@ -35,13 +37,37 @@ def meta_training(base_model, meta_optimizer, base_optimizer, meta_scheduler, tr
 
                     # Computing the loss using the learned loss and updating the base weights.
                     yp_support = fmodel(X_support)  # Computing the base network predictions on support.
-                    loss_support = loss_function(yp_support, y_support)  # Finding the loss wrt. support set.
+                    loss_support = base_loss_function(yp_support, y_support)  # Finding the loss wrt. support set.
                     diffopt.step(loss_support)  # Update base network weights (theta).
 
-                # Computing the task loss and updating the meta weights.
-                yp_query = fmodel(X_query)  # Computing the base network predictions on query.
-                loss_query = loss_function(yp_query, y_query)  # Finding the loss wrt. query set.
-                loss_query.backward()  # Unrolls through the gradient steps.
+                # Perform the typical unrolled differentiation objective.
+                if base_bootstrapped_gradient_steps == 0:
+
+                    # Computing the task loss and updating the meta weights.
+                    yp_query = fmodel(X_query)  # Computing the base network predictions on query.
+                    loss_query = meta_loss_function(yp_query, y_query)  # Finding the loss wrt. query set.
+                    loss_query.backward()  # Unrolls through the gradient steps.
+
+                else:
+                    # Creating a copy of the base model for generating a bootstrapping target.
+                    bootstrapped_model = copy.deepcopy(base_model)
+                    bootstrapped_model.load_state_dict(copy.deepcopy(fmodel.state_dict()))
+
+                    # Creating a copy of the base optimizer for generating a bootstrapping target.
+                    bootstrapped_optimizer = copy.deepcopy(base_optimizer)
+                    bootstrapped_optimizer.param_groups[0].update({"params": list(bootstrapped_model.parameters())})
+
+                    # Taking a predetermined number of bootstrapping steps.
+                    for _ in range(base_bootstrapped_gradient_steps):
+                        bootstrapped_optimizer.zero_grad()  # Clearing out the gradient cache.
+                        yp_query = bootstrapped_model(X_query)  # Computing the base network predictions on query.
+                        loss_query = meta_loss_function(yp_query, y_query)  # Finding the loss wrt. query set.
+                        loss_query.backward()  # Computing the gradients wrt. to the loss.
+                        bootstrapped_optimizer.step()  # Updating the model parameters.
+
+                    # Performing the meta-update by using a matching function.
+                    task_loss = matching_function(fmodel, bootstrapped_model)
+                    task_loss.backward()
 
                 # Storing the validation performance history.
                 performance_history.append(performance_metric(yp_query, y_query).item())

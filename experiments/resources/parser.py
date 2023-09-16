@@ -16,6 +16,7 @@ def register_configurations(parser):
 
     # Base Optimization used in Meta-Training.
     parser.add_argument("--base_gradient_steps", required=False, type=int)
+    parser.add_argument("--base_bootstrapped_gradient_steps", required=False, type=int)
     parser.add_argument("--base_optimizer_name", required=False, type=str)
 
     parser.add_argument("--init_gradient_steps", required=False, type=int)
@@ -26,6 +27,7 @@ def register_configurations(parser):
     # Inner and Outer Objectives.
     parser.add_argument("--performance_metric", required=False, type=str)
     parser.add_argument("--task_loss_function", required=False, type=str)
+    parser.add_argument("--matching_function", required=False, type=str)
 
     # Experiment Settings.
     parser.add_argument("--fast", required=False, default=False, type=lambda x: (str(x).lower() == 'true'))

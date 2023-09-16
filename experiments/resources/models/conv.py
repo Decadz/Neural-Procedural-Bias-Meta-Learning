@@ -52,7 +52,7 @@ class WarpConv4(torch.nn.Module):
             ("warp4", _WarpBlock(num_filters, num_filters)),
         ]))
 
-        linear_in = 3200 if input_channels == 3 else 1600
+        linear_in = 3200 if input_channels == 3 else 128
         self.output_layer = torch.nn.Linear(linear_in, num_ways)
 
     def forward(self, x):

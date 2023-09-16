@@ -12,13 +12,8 @@ import time
 import yaml
 
 
-# TODO - Figure out what resnet configuration should look like.
 # TODO - Check to see if paramterization class still works on block modules.
 # TODO - Add bootstrapped steps to config file.
-
-# TODO - Clear out results folder.
-# TODO - Push to github.
-
 
 # Use the GPU/CUDA when available, else use the CPU.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -73,39 +68,18 @@ def _run_experiment(dataset, model, config, random_state):
     training, validation, testing = dataset(device=device, **config)
 
     # Creating the base model.
-    base_model = model(**config)
+    base_model = model(**config).to(device)
 
-    """
-    import functools
-    test_config = { 
-        torch.nn.Linear: {
-            "weight": functools.partial(Parameterization.from_linear, rank=20, lora=True, warp=True),
-        },
-        torch.nn.Conv2d: {
-            "weight": functools.partial(Parameterization.from_conv2d, rank=20, lora=True, warp=True),
-        },
-    }
+    # Creating the meta learned loss function.
+    learned_loss = LearnedLossNetwork(
+        task_loss_fn=objective_archive[config["task_loss_function"]],
+        input_dim=config["num_ways"]
+    ).to(device)
 
-    # Adding parameterization to the model.
-    add_npbml(base_model, config=test_config)
-    """
-
-    # Sending model to the correct device.
-    base_model.to(device)
-
-    """
     # Creating the base model's *meta* optimizer.
     meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
-        list(original_parameters(base_model)) + list(lora_parameters(base_model)) + list(warp_parameters(base_model)),
+        list(base_model.adapt_parameters()) + list(base_model.warp_parameters()) + list(learned_loss.parameters()),
         **config["meta_optimizer_settings"])
-
-    # Creating the base model's *base* optimizer.
-    base_optimizer = optimizer_archive[config["base_optimizer_name"]](
-        lora_parameters(base_model), **config["base_optimizer_settings"])
-    """
-    # Creating the base model's *meta* optimizer.
-    meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
-        list(base_model.adapt_parameters()) + list(base_model.warp_parameters()), **config["meta_optimizer_settings"])
 
     # Creating the base model's *base* optimizer.
     base_optimizer = optimizer_archive[config["base_optimizer_name"]](
@@ -128,9 +102,10 @@ def _run_experiment(dataset, model, config, random_state):
     # Performing the meta-training phase.
     meta_training_history = meta_training(
         base_model, meta_optimizer, base_optimizer, meta_scheduler, training, validation,
-        loss_function=objective_archive[config["task_loss_function"]],
+        meta_loss_function=objective_archive[config["task_loss_function"]],
+        matching_function=objective_archive[config["matching_loss_function"]],
         performance_metric=objective_archive[config["evaluation_metric"]],
-        **config
+        base_loss_function=learned_loss, **config
     )
 
     # Recording the end of the meta-training phase.
