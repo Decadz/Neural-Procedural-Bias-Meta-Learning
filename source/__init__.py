@@ -23,4 +23,5 @@ from source.base_learning import backpropagation
 from source.base_learning import evaluate
 
 from source.loss_network import LearnedLossNetwork
+from source.loss_network import LossNetworkV1
 

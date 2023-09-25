@@ -6,7 +6,7 @@ test_tasks: 600
 
 # Meta Optimization used in Meta-Training.
 meta_gradient_steps: 60000
-meta_batch_size: 32
+meta_batch_size: 8
 meta_optimizer_name: "adam"
 meta_optimizer_settings:
   lr: 0.001
@@ -47,6 +47,6 @@ task_loss_function: "celoss"
 matching_loss_function: "kldiv"
 
 # Experiment Settings
-output_path: results/omiglot/
+output_path: results/omniglot/
 input_channels: 1
 verbose: 2

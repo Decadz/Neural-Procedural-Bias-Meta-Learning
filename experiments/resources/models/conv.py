@@ -88,7 +88,7 @@ class _ConvBlock(torch.nn.Module):
 
         self.conv = torch.nn.Conv2d(in_channels, out_channels, 3, padding=1)
         self.bn = torch.nn.BatchNorm2d(out_channels)
-        self.relu = torch.nn.ReLU(inplace=True)
+        self.relu = torch.nn.LeakyReLU(inplace=True)
         self.pool = torch.nn.MaxPool2d(2)
 
     def forward(self, x):
@@ -109,11 +109,11 @@ class _WarpBlock(torch.nn.Module):
             self.bn_in = torch.nn.BatchNorm2d(in_channels)
 
         self.conv1 = torch.nn.Conv2d(in_channels, out_channels, 3, padding=1)
-        self.activation1 = torch.nn.ReLU(inplace=True) if nonlinearity else torch.nn.Identity()
+        self.activation1 = torch.nn.LeakyReLU(inplace=True) if nonlinearity else torch.nn.Identity()
 
         if stacked_conv:
             self.conv2 = torch.nn.Conv2d(in_channels, out_channels, 3, padding=1)
-            self.activation2 = torch.nn.ReLU(inplace=True) if nonlinearity else torch.nn.Identity()
+            self.activation2 = torch.nn.LeakyReLU(inplace=True) if nonlinearity else torch.nn.Identity()
 
         if batch_norm and residual_connection:
             self.bn_out = torch.nn.BatchNorm2d(out_channels)
@@ -122,7 +122,6 @@ class _WarpBlock(torch.nn.Module):
         self.batch_norm = batch_norm
         self.stacked_conv = stacked_conv
         self.residual_connection = residual_connection
-        
 
     def forward(self, x):
         h = x

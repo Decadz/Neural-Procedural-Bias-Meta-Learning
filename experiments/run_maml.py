@@ -89,7 +89,7 @@ def _run_experiment(dataset, model, config, random_state):
     results = {"start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}
 
     # Performing the meta-training phase.
-    meta_training_history = meta_training(
+    meta_training_history, base_model, _ = meta_training(
         base_model, meta_optimizer, base_optimizer, meta_scheduler, training, validation,
         meta_loss_function=objective_archive[config["task_loss_function"]],
         matching_function=objective_archive[config["matching_loss_function"]],

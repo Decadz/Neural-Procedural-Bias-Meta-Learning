@@ -16,6 +16,7 @@ from experiments.resources.metrics import MultiErrorRate
 from experiments.resources.metrics import BinaryErrorRate
 from experiments.resources.exporter import export_results
 from experiments.resources.exporter import export_model
+from experiments.resources.exporter import export_loss
 
 import inspect
 import torch

@@ -9,8 +9,10 @@ def meta_training(base_model, meta_optimizer, base_optimizer, meta_scheduler, tr
                   meta_loss_function, base_loss_function, matching_function, performance_metric,
                   verbose, **kwargs):
 
-    # List for keeping track of the learning history.
-    training_history = []
+    # Objects for keeping track of the learning history.
+    checkpointer = _StateCheckpointer(
+        base_optimizer, validation, base_gradient_steps, meta_gradient_steps, performance_metric
+    )
 
     # Performing the meta-training phase using unrolled differentiation to update meta parameters.
     for step in (training_progress := tqdm.tqdm(
@@ -19,9 +21,6 @@ def meta_training(base_model, meta_optimizer, base_optimizer, meta_scheduler, tr
 
         # Clearing the gradient cache.
         meta_optimizer.zero_grad()
-
-        # List for keeping track of the learning history.
-        performance_history = []
 
         # For each task in our meta batch compute its base trajectory.
         for i in range(meta_batch_size):
@@ -38,6 +37,12 @@ def meta_training(base_model, meta_optimizer, base_optimizer, meta_scheduler, tr
                     # Computing the loss using the learned loss and updating the base weights.
                     yp_support = fmodel(X_support)  # Computing the base network predictions on support.
                     loss_support = base_loss_function(yp_support, y_support)  # Finding the loss wrt. support set.
+
+                    # TODO - TESTING CODE
+                    #yp_query = fmodel(X_query)
+                    #loss_support = base_loss_function(X_support, yp_support, y_support, X_query, yp_query.detach(), fmodel)
+                    # TODO - TESTING CODE
+
                     diffopt.step(loss_support)  # Update base network weights (theta).
 
                 # Perform the typical unrolled differentiation objective.
@@ -69,21 +74,19 @@ def meta_training(base_model, meta_optimizer, base_optimizer, meta_scheduler, tr
                     task_loss = matching_function(fmodel, bootstrapped_model)
                     task_loss.backward()
 
-                # Storing the validation performance history.
-                performance_history.append(performance_metric(yp_query, y_query).item())
-
-        meta_optimizer.step()  # Update the meta parameters.
+        # Update the meta parameters.
+        meta_optimizer.step()
 
         # Updating the meta-scheduler step count.
         if meta_scheduler is not None:
             meta_scheduler.step()
 
-        # Updating training history and progression bar.
-        training_history.append(sum(performance_history)/len(performance_history))
-        performance = sum(performance_history)/len(performance_history)
+        # Checkpointing the model and returning the validation performance.
+        performance = checkpointer.checkpoint(base_model, base_loss_function, step)
         training_progress.set_description("Performance " + str(round(performance, 4)))
 
-    return training_history
+    # Returning the training history and the best base model and loss function.
+    return checkpointer.performance_history, checkpointer.best_model, checkpointer.best_loss_function
 
 
 def meta_testing(base_model, base_optimizer, dataset, base_gradient_steps, loss_function,
@@ -118,3 +121,53 @@ def meta_testing(base_model, base_optimizer, dataset, base_gradient_steps, loss_
     # Returning the mean and standard deviation of performance.
     performance = torch.tensor(performance_history)
     return torch.mean(performance).item(), torch.std(performance).item()
+
+
+class _StateCheckpointer(torch.nn.Module):
+
+    def __init__(self, base_optimizer, dataset, base_gradient_steps, meta_gradient_steps,
+                 performance_metric, test_tasks=600, frequency=1000, **kwargs):
+        super(_StateCheckpointer, self).__init__()
+
+        # Settings used for the checkpointing.
+        self.base_gradient_steps = base_gradient_steps
+        self.meta_gradient_steps = meta_gradient_steps
+        self.performance_metric = performance_metric
+        self.base_optimizer = base_optimizer
+        self.test_tasks = test_tasks
+        self.frequency = frequency
+        self.dataset = dataset
+
+        # Tracking the best base model so far.
+        self.best_performance = None
+        self.best_loss_function = None
+        self.best_model = None
+
+        # List for keeping track of the learning history.
+        self.performance_history = []
+
+    def checkpoint(self, base_model, loss_function, step):
+
+        # If step is not in the desired frequency the skip checkpointing.
+        if step % self.frequency == 0 or step == self.meta_gradient_steps - 1:
+
+            # Performing the meta-validation stage.
+            performance, _ = meta_testing(
+                base_model, self.base_optimizer, self.dataset, self.base_gradient_steps,
+                loss_function, self.performance_metric, self.test_tasks, 0
+            )
+
+            # If this is the best model so far then cache the model.
+            if self.best_model is None or performance < self.best_performance:
+                self.best_performance = performance
+                self.best_loss_function = copy.deepcopy(loss_function)
+                self.best_model = copy.deepcopy(base_model)
+
+            # Mapping the optimizer parameters to the best model parameters.
+            if step == self.meta_gradient_steps - 1:
+                self.base_optimizer.param_groups[0].update({"params": list(self.best_model.parameters())})
+
+            # Keeping track of the learning history.
+            self.performance_history.append(performance)
+
+        return self.best_performance

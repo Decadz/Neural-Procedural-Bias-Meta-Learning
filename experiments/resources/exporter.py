@@ -18,6 +18,22 @@ def export_model(model, res_directory, file_name, save_state_dictionary=True):
             torch.save(model, res_directory + "models/" + file_name + ".pth")
 
 
+def export_loss(loss, res_directory, file_name, save_state_dictionary=True):
+
+    # Exporting the results to a json file.
+    if not os.path.exists(res_directory):
+        os.makedirs(res_directory)
+
+    if loss is not None:  # Exporting the trained model to a .pth file.
+        if not os.path.exists(res_directory + "losses/"):
+            os.makedirs(res_directory + "losses/")
+
+        if save_state_dictionary:
+            torch.save(loss.state_dict(), res_directory + "losses/" + file_name + ".pth")
+        else:
+            torch.save(loss, res_directory + "losses/" + file_name + ".pth")
+
+
 def export_results(results, res_directory, file_name):
 
     # Exporting the results to a json file.

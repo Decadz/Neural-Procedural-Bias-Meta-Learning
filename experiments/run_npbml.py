@@ -12,9 +12,6 @@ import time
 import yaml
 
 
-# TODO - Check to see if paramterization class still works on block modules.
-# TODO - Add bootstrapped steps to config file.
-
 # Use the GPU/CUDA when available, else use the CPU.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -75,7 +72,12 @@ def _run_experiment(dataset, model, config, random_state):
         task_loss_fn=objective_archive[config["task_loss_function"]],
         input_dim=config["num_ways"]
     ).to(device)
-
+    """
+    learned_loss = LossNetworkV1(
+        task_loss_fn=objective_archive[config["task_loss_function"]],
+        base_model=base_model, ** config
+    ).to(device)
+    """
     # Creating the base model's *meta* optimizer.
     meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
         list(base_model.adapt_parameters()) + list(base_model.warp_parameters()) + list(learned_loss.parameters()),
@@ -84,7 +86,7 @@ def _run_experiment(dataset, model, config, random_state):
     # Creating the base model's *base* optimizer.
     base_optimizer = optimizer_archive[config["base_optimizer_name"]](
         base_model.adapt_parameters(), **config["base_optimizer_settings"])
-    
+
     # Creating the meta learning rate scheduler.
     meta_scheduler = scheduler_archive[config["meta_scheduler_name"]](
         meta_optimizer, **config["meta_scheduler_settings"])
@@ -100,7 +102,7 @@ def _run_experiment(dataset, model, config, random_state):
     results = {"start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}
 
     # Performing the meta-training phase.
-    meta_training_history = meta_training(
+    meta_training_history, base_model, learned_loss = meta_training(
         base_model, meta_optimizer, base_optimizer, meta_scheduler, training, validation,
         meta_loss_function=objective_archive[config["task_loss_function"]],
         matching_function=objective_archive[config["matching_loss_function"]],
@@ -113,17 +115,16 @@ def _run_experiment(dataset, model, config, random_state):
 
     # Exporting the learned model's state dictionary.
     export_model(base_model, res_directory, file_name)
+    export_loss(learned_loss, res_directory, file_name)
 
     # Performing the meta-testing phase.
     results["training_mean"], results["training_std"] = meta_testing(
-        base_model, base_optimizer, training,
-        loss_function=objective_archive[config["task_loss_function"]],
+        base_model, base_optimizer, training, loss_function=learned_loss,
         performance_metric=objective_archive[config["evaluation_metric"]],
         **config
     )
     results["testing_mean"], results["testing_std"] = meta_testing(
-        base_model, base_optimizer, testing,
-        loss_function=objective_archive[config["task_loss_function"]],
+        base_model, base_optimizer, testing, loss_function=learned_loss,
         performance_metric=objective_archive[config["evaluation_metric"]],
         **config
     )
