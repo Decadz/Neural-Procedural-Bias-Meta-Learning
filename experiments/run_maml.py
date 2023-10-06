@@ -4,6 +4,7 @@ sys.path.append(os.getcwd())
 from experiments.resources import *
 from source import *
 
+import functools
 import argparse
 import torch
 import random
@@ -74,6 +75,11 @@ def _run_experiment(dataset, model, config, random_state):
     base_optimizer = optimizer_archive[config["base_optimizer_name"]](
         base_model.parameters(), **config["base_optimizer_settings"])
 
+    # Creating the *function* for the bootstrapped optimizer.
+    base_bootstrapped_optimizer = functools.partial(
+        optimizer_archive[config["base_bootstrapped_optimizer_name"]],
+        **config["base_bootstrapped_optimizer_settings"])
+
     # Creating the meta learning rate scheduler.
     meta_scheduler = scheduler_archive[config["meta_scheduler_name"]](
         meta_optimizer, **config["meta_scheduler_settings"])
@@ -90,7 +96,8 @@ def _run_experiment(dataset, model, config, random_state):
 
     # Performing the meta-training phase.
     meta_training_history, base_model, _ = meta_training(
-        base_model, meta_optimizer, base_optimizer, meta_scheduler, training, validation,
+        base_model, meta_optimizer, base_optimizer, base_bootstrapped_optimizer,
+        meta_scheduler, training, validation,
         meta_loss_function=objective_archive[config["task_loss_function"]],
         matching_function=objective_archive[config["matching_loss_function"]],
         base_loss_function=objective_archive[config["task_loss_function"]],

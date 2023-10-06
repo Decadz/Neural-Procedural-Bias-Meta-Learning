@@ -52,8 +52,7 @@ def compute_results():
 def plot_learning_curve():
 
     paths = [
-       #"results/omniglot/maml-omniglot-conv4-5way-1shot",
-        "results/omniglot/npbml-omniglot-conv4-5way-1shot",
+        "results/miniimagenet/maml-miniimagenet-conv4-5way-1shot"
     ]
 
     # Setting the plot settings.
@@ -71,7 +70,7 @@ def plot_learning_curve():
         res_task_loss = []
 
         # Iterating over the random seeds/executions.
-        for seed in [1000]: #range(1):
+        for seed in [2017]: #range(1):
 
             # Loading the json file into a dictionary.
             results = json.load(open(path + "-" + str(seed) + ".json"))
@@ -80,7 +79,7 @@ def plot_learning_curve():
             res_task_loss.append(results["meta_training_history"])
 
         # Computing the average learning curve.
-        task_loss = np.mean(res_task_loss, axis=0).flatten()[::5]
+        task_loss = np.mean(res_task_loss, axis=0).flatten()
         plt.plot(np.linspace(0, len(res_task_loss[0]), len(task_loss)),
                  task_loss, color=color, label=method, linewidth=3)
 

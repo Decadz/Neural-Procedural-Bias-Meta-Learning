@@ -18,10 +18,17 @@ meta_scheduler_settings:
 
 # Base Optimization used in Meta-Training.
 base_gradient_steps: 5
-base_bootstrapped_gradient_steps: 5
 base_optimizer_name: "sgd"
 base_optimizer_settings:
   lr: 0.01
+  momentum: 0
+  nesterov: False
+  weight_decay: 0
+
+base_bootstrapped_gradient_steps: 5
+base_bootstrapped_optimizer_name: "sgd"
+base_bootstrapped_optimizer_settings:
+  lr: 0.0001
   momentum: 0
   nesterov: False
   weight_decay: 0

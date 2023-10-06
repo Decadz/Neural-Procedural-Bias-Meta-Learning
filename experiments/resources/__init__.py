@@ -37,13 +37,9 @@ def kl_divergence(p_target, q_target):
     of parameters and a bootstrapped target to minimize the divergce to.
     """
 
-    # Turning the parameters into a flattened vector (tensor).
-    p = torch.nn.utils.parameters_to_vector(p_target.parameters())
-    q = torch.nn.utils.parameters_to_vector(q_target.parameters())
-
     # Converting into a probability distribution.
-    p = torch.nn.functional.softmax(p, dim=0)
-    q = torch.nn.functional.softmax(q, dim=0)
+    p = torch.nn.functional.softmax(p_target, dim=0)
+    q = torch.nn.functional.softmax(q_target, dim=0)
 
     # Computing the Kullback-Leibler divergence.
     return (p * (p / q).log()).sum()

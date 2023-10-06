@@ -4,9 +4,9 @@ import tqdm
 import copy
 
 
-def meta_training(base_model, meta_optimizer, base_optimizer, meta_scheduler, training, validation,
-                  meta_gradient_steps, base_gradient_steps, base_bootstrapped_gradient_steps, meta_batch_size,
-                  meta_loss_function, base_loss_function, matching_function, performance_metric,
+def meta_training(base_model, meta_optimizer, base_optimizer, base_bootstrapped_optimizer, meta_scheduler,
+                  training, validation, meta_gradient_steps, base_gradient_steps, base_bootstrapped_gradient_steps,
+                  meta_batch_size, meta_loss_function, base_loss_function, matching_function, performance_metric,
                   verbose, **kwargs):
 
     # Objects for keeping track of the learning history.
@@ -57,10 +57,7 @@ def meta_training(base_model, meta_optimizer, base_optimizer, meta_scheduler, tr
                     # Creating a copy of the base model for generating a bootstrapping target.
                     bootstrapped_model = copy.deepcopy(base_model)
                     bootstrapped_model.load_state_dict(copy.deepcopy(fmodel.state_dict()))
-
-                    # Creating a copy of the base optimizer for generating a bootstrapping target.
-                    bootstrapped_optimizer = copy.deepcopy(base_optimizer)
-                    bootstrapped_optimizer.param_groups[0].update({"params": list(bootstrapped_model.parameters())})
+                    bootstrapped_optimizer = base_bootstrapped_optimizer(bootstrapped_model.parameters())
 
                     # Taking a predetermined number of bootstrapping steps.
                     for _ in range(base_bootstrapped_gradient_steps):
@@ -71,7 +68,9 @@ def meta_training(base_model, meta_optimizer, base_optimizer, meta_scheduler, tr
                         bootstrapped_optimizer.step()  # Updating the model parameters.
 
                     # Performing the meta-update by using a matching function.
-                    task_loss = matching_function(fmodel, bootstrapped_model)
+                    target_output = torch.nn.utils.parameters_to_vector(fmodel.parameters())
+                    target_bootstrapped_ = torch.nn.utils.parameters_to_vector(bootstrapped_model.parameters())
+                    task_loss = matching_function(target_output, target_bootstrapped_)
                     task_loss.backward()
 
         # Update the meta parameters.
@@ -126,7 +125,7 @@ def meta_testing(base_model, base_optimizer, dataset, base_gradient_steps, loss_
 class _StateCheckpointer(torch.nn.Module):
 
     def __init__(self, base_optimizer, dataset, base_gradient_steps, meta_gradient_steps,
-                 performance_metric, test_tasks=600, frequency=1000, **kwargs):
+                 performance_metric, test_tasks=600, frequency=500, **kwargs):
         super(_StateCheckpointer, self).__init__()
 
         # Settings used for the checkpointing.

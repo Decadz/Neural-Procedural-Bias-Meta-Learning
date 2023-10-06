@@ -73,14 +73,14 @@ def FC100(num_ways, num_shots, test_shots, device, **kwargs):
     training_transforms = torchvision.transforms.Compose([
         torchvision.transforms.Resize(84),
         torchvision.transforms.ToTensor(),
-        torchvision.transforms.Normalize(mean=[0.5071, 0.4867, 0.4408], std=[0.2675, 0.2565, 0.2761])
+        #torchvision.transforms.Normalize(mean=[0.5071, 0.4867, 0.4408], std=[0.2675, 0.2565, 0.2761])
     ])
 
     # Defining the validation and testing transforms.
     testing_transforms = torchvision.transforms.Compose([
         torchvision.transforms.Resize(84),
         torchvision.transforms.ToTensor(),
-        torchvision.transforms.Normalize(mean=[0.5071, 0.4867, 0.4408], std=[0.2675, 0.2565, 0.2761])
+        #torchvision.transforms.Normalize(mean=[0.5071, 0.4867, 0.4408], std=[0.2675, 0.2565, 0.2761])
     ])
 
     # Generating the training, validation, and testing datasets.
@@ -94,7 +94,7 @@ def FC100(num_ways, num_shots, test_shots, device, **kwargs):
     testing_sampler = _TaskSampler(testing, num_ways, num_shots, test_shots)
 
     # Generating a custom dataloaders which process batches.
-    train = _DataLoader(training, training_sampler, device, random_rotation=True)
+    train = _DataLoader(training, training_sampler, device, random_rotation=False)
     val = _DataLoader(validation, validation_sampler, device, random_rotation=False)
     test = _DataLoader(testing, testing_sampler, device, random_rotation=False)
 
@@ -166,14 +166,14 @@ def TieredImagenet(num_ways, num_shots, test_shots, device, **kwargs):
     training_transforms = torchvision.transforms.Compose([
         torchvision.transforms.Resize(84),
         torchvision.transforms.ToTensor(),
-        torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        #torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
     # Defining the validation and testing transforms.
     testing_transforms = torchvision.transforms.Compose([
         torchvision.transforms.Resize(84),
         torchvision.transforms.ToTensor(),
-        torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        #torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
     # Generating the training, validation, and testing datasets.
@@ -187,7 +187,7 @@ def TieredImagenet(num_ways, num_shots, test_shots, device, **kwargs):
     testing_sampler = _TaskSampler(testing, num_ways, num_shots, test_shots)
 
     # Generating a custom dataloaders which process batches.
-    train = _DataLoader(training, training_sampler, device, random_rotation=True)
+    train = _DataLoader(training, training_sampler, device, random_rotation=False)
     val = _DataLoader(validation, validation_sampler, device, random_rotation=False)
     test = _DataLoader(testing, testing_sampler, device, random_rotation=False)
 

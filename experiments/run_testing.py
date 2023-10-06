@@ -11,7 +11,7 @@ import numpy
 import yaml
 import json
 
-# python experiments/run_testing.py --method npbml --dataset miniimagenet --model conv4 --num_ways 5 --num_shots 1 --base_gradient_steps 5 --seeds 6
+# python experiments/run_testing.py --method maml --dataset miniimagenet --model conv4 --num_ways 5 --num_shots 1 --base_gradient_steps 5 --seeds 1008
 
 # Use the GPU/CUDA when available, else use the CPU.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

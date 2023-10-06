@@ -1,6 +1,7 @@
 # Testing scripts for validating code correctness.
 python experiments/run_maml.py --dataset miniimagenet --model conv4 --seeds 0 --fast True --base_gradient_steps 1 --meta_gradient_steps 1000
 python experiments/run_npbml.py --dataset miniimagenet --model conv4 --seeds 0 --fast True --base_gradient_steps 1 --meta_gradient_steps 1000
+python experiments/run_maml.py --dataset miniimagenet --model conv4 --seeds 0 --fast True --base_gradient_steps 1 --base_bootstrapped_gradient_steps 5 --meta_gradient_steps 1000
 
 # NPBML Few-Shot Learning Experiments.
 python experiments/run_npbml.py --dataset omniglot --model conv4 --num_ways 5 --num_shots 1 --base_bootstrapped_gradient_steps 1 --seeds 0 1 2 3 4 --device cuda:0
