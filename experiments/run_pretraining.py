@@ -78,7 +78,7 @@ def _run_experiment(dataset, model, config, random_state):
     # Creating the base model, with.
     base_model = model(
         input_channels=config["input_channels"],
-        num_filters=config["num_filters"],
+        track_running_stats=config["track_running_stats"],
         num_ways=training.dataset.num_classes
     ).to(device)
 
