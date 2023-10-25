@@ -4,7 +4,6 @@ sys.path.append(os.getcwd())
 from experiments.resources import *
 from source import *
 
-import functools
 import argparse
 import torch
 import random
@@ -12,6 +11,7 @@ import numpy
 import time
 import yaml
 
+# python experiments/run_pretraining.py --dataset miniimagenet --model conv --num_ways 5 --num_shots 1 --seeds 0 --device cuda:0
 
 # Use the GPU/CUDA when available, else use the CPU.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -65,77 +65,62 @@ def _run_experiment(dataset, model, config, random_state):
     # Generating the custom dataset object.
     training, validation, testing = dataset(device=device, **config)
 
-    # Creating the base model.
-    base_model = model(**config).to(device)
-
-    # Creating the base model's *meta* optimizer.
-    meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
-        base_model.parameters(), **config["meta_optimizer_settings"])
-
-    # Creating the base model's *base* optimizer.
-    base_optimizer = optimizer_archive[config["base_optimizer_name"]](
-        base_model.adapt_parameters(), **config["base_optimizer_settings"])
-
-    # Creating the *function* for the bootstrapped optimizer.
-    base_bootstrapped_optimizer = functools.partial(
-        optimizer_archive[config["base_bootstrapped_optimizer_name"]],
-        **config["base_bootstrapped_optimizer_settings"])
-
-    # Creating the meta learning rate scheduler.
-    meta_scheduler = scheduler_archive[config["meta_scheduler_name"]](
-        meta_optimizer, **config["meta_scheduler_settings"])
-
     # Defining the output results directory and file name.
     res_directory = directory + config["output_path"]
-    file_name = "warpgrad-" + args.dataset + "-" + args.model + "-" + \
+    file_name = "pretraining-" + args.dataset + "-" + args.model + "-" + \
                 str(config["num_ways"]) + "way-" + str(config["num_shots"]) + "shot-" + str(random_state)
 
-    print("warpgrad", args.dataset, args.model, "seed", str(random_state), "started")
+    print("pretraining", args.dataset, args.model, "seed", str(random_state), "started")
 
     # Creating a dictionary for recording experiment results.
     results = {"start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}
 
-    # Performing the meta-training phase.
-    meta_training_history, base_model, _ = meta_training(
-        base_model, meta_optimizer, base_optimizer, base_bootstrapped_optimizer,
-        meta_scheduler, training, validation,
-        meta_loss_function=objective_archive[config["task_loss_function"]],
-        matching_function=objective_archive[config["matching_loss_function"]],
-        base_loss_function=objective_archive[config["task_loss_function"]],
+    # Creating the base model, with.
+    base_model = model(
+        input_channels=config["input_channels"],
+        num_filters=config["num_filters"],
+        num_ways=training.dataset.num_classes
+    ).to(device)
+
+    # Creating the base model's *meta* optimizer.
+    pretrain_optimizer = optimizer_archive[config["pretrain_optimizer_name"]](
+        base_model.parameters(), **config["pretrain_optimizer_settings"])
+
+    pretrain_scheduler = scheduler_archive[config["pretrain_scheduler_name"]](
+        pretrain_optimizer, **config["pretrain_scheduler_settings"])
+
+    transfer_history, base_model = pretraining(
+        base_model, pretrain_optimizer, pretrain_scheduler, training, validation,
+        gradient_steps=config["pretrain_gradient_steps"],
+        batch_size=config["pretrain_batch_size"],
+        loss_function=objective_archive[config["task_loss_function"]],
         performance_metric=objective_archive[config["evaluation_metric"]],
-        **config
+        device=device, **config
     )
 
-    # Recording the end of the meta-training phase.
+    # Recording the learning meta-data.
     results["end_time"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
-    # Exporting the learned model's state dictionary.
-    export_model(base_model, res_directory, file_name)
+    # Access the last layer of the base model.
+    old_output_layer = list(base_model.modules())[-1]
 
-    # Performing the meta-testing phase.
-    results["training_mean"], results["training_std"] = meta_testing(
-        base_model, base_optimizer, training,
-        loss_function=objective_archive[config["task_loss_function"]],
-        performance_metric=objective_archive[config["evaluation_metric"]],
-        **config
-    )
-    results["testing_mean"], results["testing_std"] = meta_testing(
-        base_model, base_optimizer, testing,
-        loss_function=objective_archive[config["task_loss_function"]],
-        performance_metric=objective_archive[config["evaluation_metric"]],
-        **config
-    )
+    # Create a new dense/linear layer and replacing the last layer with the new layer.
+    base_model.output_layer = torch.nn.Linear(old_output_layer.in_features, config["num_ways"]).to(device)
+
+    # Saving the pretrained model.
+    export_model(base_model, res_directory, args.dataset + "-" + args.model + "-" +
+                 str(config["num_ways"]) + "way-" + str(config["num_shots"]) + "shot")
 
     # Recording the experiment configurations.
     results["experiment_configuration"] = config.copy()
 
     # Recording the training history.
-    results["meta_training_history"] = meta_training_history
+    results["transfer_history"] = transfer_history
 
     # Exporting the results to a json file.
     export_results(results, res_directory, file_name)
 
-    print("warpgrad", args.dataset, args.model, "seed", str(random_state), "complete")
+    print("pretraining", args.dataset, args.model, "seed", str(random_state), "complete")
 
 
 # Opening the relevant configurations file.

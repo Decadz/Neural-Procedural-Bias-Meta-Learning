@@ -31,6 +31,8 @@ def meta_training(base_model, meta_optimizer, base_optimizer, base_bootstrapped_
             # Creating a differentiable optimizer and stateless models via PyTorch higher.
             with higher.innerloop_ctx(base_model, base_optimizer, copy_initial_weights=False) as (fmodel, diffopt):
 
+                fmodel.init_adaptation()
+
                 # Taking a predetermined number of inner steps before meta update.
                 for _ in range(base_gradient_steps):
 
@@ -51,6 +53,7 @@ def meta_training(base_model, meta_optimizer, base_optimizer, base_bootstrapped_
                     # Computing the task loss and updating the meta weights.
                     yp_query = fmodel(X_query)  # Computing the base network predictions on query.
                     loss_query = meta_loss_function(yp_query, y_query)  # Finding the loss wrt. query set.
+                    loss_query.div_(meta_batch_size)  # Dividing the loss by the batch size.
                     loss_query.backward()  # Unrolls through the gradient steps.
 
                 else:
@@ -69,9 +72,13 @@ def meta_training(base_model, meta_optimizer, base_optimizer, base_bootstrapped_
 
                     # Performing the meta-update by using a matching function.
                     target_output = torch.nn.utils.parameters_to_vector(fmodel.parameters())
-                    target_bootstrapped_ = torch.nn.utils.parameters_to_vector(bootstrapped_model.parameters())
-                    task_loss = matching_function(target_output, target_bootstrapped_)
+                    target_bootstrapped = torch.nn.utils.parameters_to_vector(bootstrapped_model.parameters())
+                    task_loss = matching_function(target_output, target_bootstrapped)
+                    task_loss.div_(meta_batch_size)
                     task_loss.backward()
+
+        # Applying meta-gradient clipping as done in MAML++.
+        torch.nn.utils.clip_grad_value_(base_model.parameters(), clip_value=10)
 
         # Update the meta parameters.
         meta_optimizer.step()
@@ -102,6 +109,8 @@ def meta_testing(base_model, base_optimizer, dataset, base_gradient_steps, loss_
         # Creating a differentiable optimizer and stateless models via PyTorch higher.
         with higher.innerloop_ctx(base_model, base_optimizer, copy_initial_weights=False,
                                   track_higher_grads=False) as (fmodel, diffopt):
+
+            fmodel.init_adaptation()
 
             # Taking a predetermined number of inner steps before meta update.
             for _ in range(base_gradient_steps):

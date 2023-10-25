@@ -2,9 +2,9 @@ import collections
 import torch
 
 
-class ResNet12(torch.nn.Module):
+class _ResNet(torch.nn.Module):
 
-    def __init__(self, input_channels=3, num_ways=5, **kwargs):
+    def __init__(self, block_config, input_channels=3, num_ways=5, **kwargs):
 
         """
         Implementation of ResNets from the paper "Deep Residual Learning
@@ -12,31 +12,39 @@ class ResNet12(torch.nn.Module):
         Ren, and Jian Sun.
         """
 
-        super(ResNet12, self).__init__()
-        channels = [64, 128, 256, 512]  # wrn = [64, 160, 320, 640]
+        super(_ResNet, self).__init__()
 
         self.encoder = torch.nn.Sequential(collections.OrderedDict([
-            ("block1", Block(input_channels, channels[0])),
-            ("block2", Block(channels[0], channels[1])),
-            ("block3", Block(channels[1], channels[2])),
-            ("block4", Block(channels[2], channels[3])),
+            ("block1", _Block(input_channels, block_config[0])),
+            ("block2", _Block(block_config[0], block_config[1])),
+            ("block3", _Block(block_config[1], block_config[2])),
+            ("block4", _Block(block_config[2], block_config[3])),
             ("adaPool", torch.nn.AdaptiveAvgPool2d(1)),
             ("flatten", torch.nn.Flatten())
         ]))
 
-        self.output_layer = torch.nn.Linear(512, num_ways)
+        self.output_layer = torch.nn.Linear(block_config[-1], num_ways)
 
-        for m in self.modules():
-            if isinstance(m, torch.nn.Conv2d):
-                torch.nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='leaky_relu')
-            elif isinstance(m, torch.nn.BatchNorm2d):
-                torch.nn.init.constant_(m.weight, 1.)
-                torch.nn.init.constant_(m.bias, 0.)
+        # Model configuration hyper-parameters.
+        self.input_channels = input_channels
+        self.num_ways = num_ways
+
+        # Initializing the model's parameters.
+        for module in self.modules():
+            if isinstance(module, torch.nn.Conv2d):
+                torch.nn.init.normal_(module.weight, 0, 0.01)
+                module.bias.data.zero_()
+            elif isinstance(module, torch.nn.Linear):
+                torch.nn.init.normal_(module.weight, 0, 0.01)
+                module.bias.data.zero_()
+            elif isinstance(module, torch.nn.BatchNorm2d):
+                module.weight.data.fill_(1)
+                module.bias.data.zero_()
 
     def forward(self, x):
         x = self.encoder(x)
         return self.output_layer(x)
-    
+
     def adapt_parameters(self):
         for param in self.encoder.block1.parameters():
             yield param
@@ -44,7 +52,7 @@ class ResNet12(torch.nn.Module):
             yield param
         for param in self.output_layer.parameters():
             yield param
-        
+
     def warp_parameters(self):
         for param in self.encoder.block2.parameters():
             yield param
@@ -52,10 +60,73 @@ class ResNet12(torch.nn.Module):
             yield param
 
 
-class Block(torch.nn.Module):
+class _WarpResNet(torch.nn.Module):
+
+    def __init__(self, block_config, input_channels=3, num_ways=5, **kwargs):
+        super(_WarpResNet, self).__init__()
+
+        self.encoder = torch.nn.Sequential(collections.OrderedDict([
+            ("block1", _Block(input_channels, block_config[0])),
+            ("warp1", _Block(block_config[0], block_config[0])),
+            ("block2", _Block(block_config[0], block_config[1])),
+            ("warp2", _Block(block_config[1], block_config[1])),
+            ("block3", _Block(block_config[1], block_config[2])),
+            ("warp3", _Block(block_config[2], block_config[2])),
+            ("block4", _Block(block_config[2], block_config[3])),
+            ("warp4", _Block(block_config[3], block_config[3])),
+            ("adaPool", torch.nn.AdaptiveAvgPool2d(1)),
+            ("flatten", torch.nn.Flatten())
+        ]))
+
+        self.output_layer = torch.nn.Linear(block_config[-1], num_ways)
+
+        # Model configuration hyper-parameters.
+        self.input_channels = input_channels
+        self.num_ways = num_ways
+
+        # Initializing the model's parameters.
+        for module in self.modules():
+            if isinstance(module, torch.nn.Conv2d):
+                torch.nn.init.normal_(module.weight, 0, 0.01)
+                module.bias.data.zero_()
+            elif isinstance(module, torch.nn.Linear):
+                torch.nn.init.normal_(module.weight, 0, 0.01)
+                module.bias.data.zero_()
+            elif isinstance(module, torch.nn.BatchNorm2d):
+                module.weight.data.fill_(1)
+                module.bias.data.zero_()
+
+    def forward(self, x):
+        x = self.encoder(x)
+        return self.output_layer(x)
+
+    def adapt_parameters(self):
+        for param in self.encoder.adapt1.parameters():
+            yield param
+        for param in self.encoder.adapt2.parameters():
+            yield param
+        for param in self.encoder.adapt3.parameters():
+            yield param
+        for param in self.encoder.adapt4.parameters():
+            yield param
+        for param in self.output_layer.parameters():
+            yield param
+
+    def warp_parameters(self):
+        for param in self.encoder.warp1.parameters():
+            yield param
+        for param in self.encoder.warp2.parameters():
+            yield param
+        for param in self.encoder.warp3.parameters():
+            yield param
+        for param in self.encoder.warp4.parameters():
+            yield param
+
+
+class _Block(torch.nn.Module):
 
     def __init__(self, in_planes, planes):
-        super(Block, self).__init__()
+        super(_Block, self).__init__()
         self.in_planes = in_planes
         self.planes = planes
 
@@ -88,3 +159,27 @@ class Block(torch.nn.Module):
         x = self.bn(x)
         out = self.pool(self.relu(out + x))
         return out
+
+
+class ResNet(_ResNet):
+
+    def __init__(self, **kwargs):
+        super(ResNet, self).__init__(block_config=[64, 128, 256, 512], **kwargs)
+
+
+class WideResNet(_ResNet):
+
+    def __init__(self, **kwargs):
+        super(WideResNet, self).__init__(block_config=[64, 160, 320, 640], **kwargs)
+
+
+class WarpResNet(_WarpResNet):
+
+    def __init__(self, **kwargs):
+        super(WarpResNet, self).__init__(block_config=[64, 128, 256, 512], **kwargs)
+
+
+class WarpWideResNet(_WarpResNet):
+
+    def __init__(self, **kwargs):
+        super(WarpWideResNet, self).__init__(block_config=[64, 160, 320, 640], **kwargs)

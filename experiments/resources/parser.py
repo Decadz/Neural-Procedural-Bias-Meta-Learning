@@ -20,10 +20,10 @@ def register_configurations(parser):
     parser.add_argument("--base_bootstrapped_gradient_steps", required=False, type=int)
     parser.add_argument("--base_bootstrapped_optimizer_name", required=False, type=str)
 
-    parser.add_argument("--init_gradient_steps", required=False, type=int)
-    parser.add_argument("--init_optimizer_name", required=False, type=str)
-    parser.add_argument("--init_batch_size", required=False, type=int)
-    parser.add_argument("--init_scheduler_name", required=False, type=str)
+    parser.add_argument("--pretrain_gradient_steps", required=False, type=int)
+    parser.add_argument("--pretrain_optimizer_name", required=False, type=str)
+    parser.add_argument("--pretrain_batch_size", required=False, type=int)
+    parser.add_argument("--pretrain_scheduler_name", required=False, type=str)
 
     # Inner and Outer Objectives.
     parser.add_argument("--performance_metric", required=False, type=str)
@@ -34,6 +34,7 @@ def register_configurations(parser):
     parser.add_argument("--fast", required=False, default=False, type=lambda x: (str(x).lower() == 'true'))
     parser.add_argument("--output_path", required=False, type=str)
     parser.add_argument("--input_channels", required=False, type=int)
+    parser.add_argument("--num_filters", required=False, type=int)
     parser.add_argument("--verbose", required=False, type=int)
 
 
@@ -70,11 +71,11 @@ def override_configurations(args, args_unknown, required_args, config):
                 key = key.replace("--base_optimizer_", "")
                 config["base_optimizer_settings"][key] = ast.literal_eval(arg)
 
-            elif "init_optimizer" in key:
+            elif "pretrain_optimizer" in key:
                 key = key.replace("--init_optimizer_", "")
                 config["init_optimizer_settings"][key] = ast.literal_eval(arg)
 
-            elif "init_scheduler" in key:
+            elif "pretrain_scheduler" in key:
                 key = key.replace("--init_scheduler_", "")
                 config["init_scheduler_settings"][key] = ast.literal_eval(arg)
 

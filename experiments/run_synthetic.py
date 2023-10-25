@@ -5,6 +5,7 @@ import higher
 import random
 import torch
 import tqdm
+import copy
 import os
 
 
@@ -22,10 +23,14 @@ def main():
     random.seed(0)
 
     # Meta-learning the loss function, infusing extra information in two different ways.
-    warp_optimizer = learned_warp_optimizer(func)
-    ml3_loss = learned_loss_function(func)
-    npbml_optimizer_1, npbml_loss_1 = learned_procedural_biases(func)
-    npbml_optimizer_2, npbml_loss_2 = learned_procedural_biases_extra(func)
+    #warp_optimizer = learned_warp_optimizer(func)
+    #ml3_loss = learned_loss_function(func)
+    #npbml_optimizer_1, npbml_loss_1 = learned_procedural_biases(func)
+    npbml_optimizer_2, npbml_loss_2 = learned_procedural_biases_extra1(func)
+    npbml_optimizer_3 = learned_procedural_biases_extra2(func)
+    npbml_loss_4 = learned_procedural_biases_extra3(func)
+    #npbml_optimizer_3, npbml_loss_3 = learned_procedural_biases_bmg(func)
+
 
     # Performing the meta testing phase on the following seeds (selected because they look nice).
     for seed in range(50):
@@ -43,7 +48,7 @@ def main():
 
         sgd_trajectory = gradient_descent(
             torch.tensor([x1, x2], requires_grad=True), func, a=a, b=b, s=s)
-
+        """
         warp_trajectory = gradient_descent(
             torch.tensor([x1, x2], requires_grad=True), func, a=a, b=b, s=s, warp_fn=warp_optimizer)
 
@@ -53,15 +58,26 @@ def main():
         npbml_trajectory_1 = gradient_descent(
             torch.tensor([x1, x2], requires_grad=True), func, a=a, b=b, s=s,
             warp_fn=npbml_optimizer_1, loss_fn=npbml_loss_1)
-        
+        """
+
         npbml_trajectory_2 = gradient_descent(
             torch.tensor([x1, x2], requires_grad=True), func, a=a, b=b, s=s,
             warp_fn=npbml_optimizer_2, loss_fn=npbml_loss_2)
 
+        npbml_trajectory_3 = gradient_descent(
+            torch.tensor([x1, x2], requires_grad=True), func, a=a, b=b, s=s, warp_fn=npbml_optimizer_3)
+
+        npbml_trajectory_4 = gradient_descent(
+            torch.tensor([x1, x2], requires_grad=True), func, a=a, b=b, s=s, loss_fn=npbml_loss_4)
+
         # Setting up the parameters for plotting different (multi) surfaces.
-        paths = [sgd_trajectory["true"],  warp_trajectory["warp"], ml3_trajectory["loss"], npbml_trajectory_1["loss"], npbml_trajectory_2["loss"]]
-        loss_fns = [None, None, ml3_loss, npbml_loss_1, npbml_loss_2]
-        optimizers = [None, warp_optimizer, None, npbml_optimizer_1, npbml_optimizer_2]
+        #paths = [sgd_trajectory["true"],  warp_trajectory["warp"], ml3_trajectory["loss"], npbml_trajectory_1["loss"], npbml_trajectory_2["loss"]]
+        #loss_fns = [None, None, ml3_loss, npbml_loss_1, npbml_loss_2]
+        #optimizers = [None, warp_optimizer, None, npbml_optimizer_1, npbml_optimizer_2]
+
+        paths = [sgd_trajectory["true"], npbml_trajectory_2["loss"], npbml_trajectory_3["warp"], npbml_trajectory_4["loss"]]
+        loss_fns = [None, npbml_loss_2, None, npbml_loss_4]
+        optimizers = [None, npbml_optimizer_2, npbml_optimizer_3, None]
 
         # Plotting each of the loss landscapes, and then the trajectories on those landscapes.
         plot_landscape_3d_multi(func, a, b, s, paths, loss_fns, optimizers, True, path + "3d-multi-" + str(seed))
@@ -70,7 +86,8 @@ def main():
         animate_landscape_2d_multi(func, a, b, s, paths, loss_fns, optimizers, True, path + "2d-multi-" + str(seed))
 
         # Setting up the parameters for plotting on the same true (single) surfaces.
-        paths = [sgd_trajectory["true"], warp_trajectory["true"], ml3_trajectory["true"], npbml_trajectory_1["true"], npbml_trajectory_2["true"]]
+        #paths = [sgd_trajectory["true"], warp_trajectory["true"], ml3_trajectory["true"], npbml_trajectory_1["true"], npbml_trajectory_2["true"]]
+        paths = [sgd_trajectory["true"], npbml_trajectory_2["true"], npbml_trajectory_3["true"]]
 
         # Plotting the true landscapes, and then the trajectories on that single landscapes.
         plot_landscape_3d_single(func, a, b, s, paths, True, path + "3d-single-" + str(seed))
@@ -129,13 +146,11 @@ class LossNetwork(torch.nn.Module):
 
         # Defining the loss functions architecture.
         self.network = torch.nn.Sequential(
-            torch.nn.Linear(3, 100),
+            torch.nn.Linear(3, 50),
             torch.nn.ELU(),
-            torch.nn.Linear(100, 100),
+            torch.nn.Linear(50, 50),
             torch.nn.ELU(),
-            torch.nn.Linear(100, 100),
-            torch.nn.ELU(),
-            torch.nn.Linear(100, 1)
+            torch.nn.Linear(50, 1)
         )
 
     def forward(self, x, y):
@@ -149,11 +164,11 @@ class OptimizerNetwork(torch.nn.Module):
 
         # Defining the loss functions architecture.
         self.network = torch.nn.Sequential(
-            torch.nn.Linear(1, 30),
-            torch.nn.Tanh(),
-            torch.nn.Linear(30, 30),
-            torch.nn.Tanh(),
-            torch.nn.Linear(30, 1)
+            torch.nn.Linear(1, 50),
+            torch.nn.ELU(),
+            torch.nn.Linear(50, 50),
+            torch.nn.ELU(),
+            torch.nn.Linear(50, 1)
         )
 
     def forward(self, y):
@@ -370,7 +385,7 @@ def learned_procedural_biases(func):
     return learned_optimizer, learned_loss
 
 
-def learned_procedural_biases_extra(func):
+def learned_procedural_biases_extra1(func):
 
     learned_optimizer = OptimizerNetwork()
     learned_loss = LossNetwork()
@@ -384,7 +399,7 @@ def learned_procedural_biases_extra(func):
     meta_optimizer = torch.optim.Adam(meta_param, lr=0.001)
 
     # Performing the offline initialization phase to learn the learned loss functions parameters (phi).
-    for step in tqdm.tqdm(range(200), desc="NPBML+Extra"):
+    for step in tqdm.tqdm(range(500), desc="NPBML+Extra"):
 
         # Clearing the gradient cache.
         meta_optimizer.zero_grad()
@@ -396,7 +411,7 @@ def learned_procedural_biases_extra(func):
             base_optimizer = torch.optim.SGD([base_model.x], lr=0.1)
 
             # Approximating the ground truth minimum location x using random search
-            rs = (torch.rand((2, 100), requires_grad=True) * 6 - 3).detach().requires_grad_(False)
+            rs = (torch.rand((2, 1000), requires_grad=True) * 6 - 3).detach().requires_grad_(False)
             rs_results = func(rs, base_model.a, base_model.b, base_model.s)
             x_opt = torch.tensor([rs[0][torch.argmin(rs_results)], rs[1][torch.argmin(rs_results)]])
 
@@ -424,6 +439,166 @@ def learned_procedural_biases_extra(func):
     return learned_optimizer, learned_loss
 
 
+def learned_procedural_biases_extra2(func):
+
+    learned_optimizer = OptimizerNetwork()
+
+    # Defining the outer optimizer for the meta-loss network.
+    meta_param = [
+        {"params": learned_optimizer.parameters(), "lr": 0.001}
+    ]
+
+    meta_optimizer = torch.optim.Adam(meta_param, lr=0.001)
+
+    # Performing the offline initialization phase to learn the learned loss functions parameters (phi).
+    for step in tqdm.tqdm(range(500), desc="NPBML+Extra"):
+
+        # Clearing the gradient cache.
+        meta_optimizer.zero_grad()
+
+        # For each training task in the task distribution.
+        for i in range(10):
+
+            base_model = Model()
+            base_optimizer = torch.optim.SGD([base_model.x], lr=0.1)
+
+            # Approximating the ground truth minimum location x using random search
+            rs = (torch.rand((2, 1000), requires_grad=True) * 6 - 3).detach().requires_grad_(False)
+            rs_results = func(rs, base_model.a, base_model.b, base_model.s)
+            x_opt = torch.tensor([rs[0][torch.argmin(rs_results)], rs[1][torch.argmin(rs_results)]])
+
+            # Taking a predetermined number of inner steps before meta update.
+            for inner_steps in range(10):
+
+                # Creating a differentiable optimizer and stateless models via PyTorch higher.
+                with higher.innerloop_ctx(base_model, base_optimizer, copy_initial_weights=False) as (fmodel, diffopt):
+
+                    y = fmodel(func)  # Calculating the loss at the given point.
+                    warp_y = learned_optimizer(y)  # Warping the loss via a learned optimizer.
+                    diffopt.step(warp_y)  # Update base network weights (theta).
+
+                # Computing the task loss and storing the change to the meta weights.
+                task_loss = ((x_opt - fmodel.x) ** 2).sum()  # Loss to the (approx) optimal solution.
+                task_loss.backward()  # Accumulates gradients wrt. to meta parameters.
+
+                base_model.x = torch.nn.Parameter(fmodel.x.clone().detach())
+                base_optimizer = torch.optim.SGD([base_model.x], lr=0.1)
+
+        # Updating meta weights (phi).
+        meta_optimizer.step()
+
+    return learned_optimizer
+
+
+def learned_procedural_biases_extra3(func):
+
+    learned_loss = LossNetwork()
+
+    # Defining the outer optimizer for the meta-loss network.
+    meta_param = [
+        {"params": learned_loss.parameters(), "lr": 0.001}
+    ]
+
+    meta_optimizer = torch.optim.Adam(meta_param, lr=0.001)
+
+    # Performing the offline initialization phase to learn the learned loss functions parameters (phi).
+    for step in tqdm.tqdm(range(500), desc="NPBML+Extra"):
+
+        # Clearing the gradient cache.
+        meta_optimizer.zero_grad()
+
+        # For each training task in the task distribution.
+        for i in range(10):
+
+            base_model = Model()
+            base_optimizer = torch.optim.SGD([base_model.x], lr=0.1)
+
+            # Approximating the ground truth minimum location x using random search
+            rs = (torch.rand((2, 1000), requires_grad=True) * 6 - 3).detach().requires_grad_(False)
+            rs_results = func(rs, base_model.a, base_model.b, base_model.s)
+            x_opt = torch.tensor([rs[0][torch.argmin(rs_results)], rs[1][torch.argmin(rs_results)]])
+
+            # Taking a predetermined number of inner steps before meta update.
+            for inner_steps in range(10):
+
+                # Creating a differentiable optimizer and stateless models via PyTorch higher.
+                with higher.innerloop_ctx(base_model, base_optimizer, copy_initial_weights=False) as (fmodel, diffopt):
+
+                    y = fmodel(func)  # Calculating the loss at the given point.
+                    base_loss = learned_loss(fmodel.x, y)
+                    diffopt.step(base_loss)  # Update base network weights (theta).
+
+                # Computing the task loss and storing the change to the meta weights.
+                task_loss = ((x_opt - fmodel.x) ** 2).sum()  # Loss to the (approx) optimal solution.
+                task_loss.backward()  # Accumulates gradients wrt. to meta parameters.
+
+                base_model.x = torch.nn.Parameter(fmodel.x.clone().detach())
+                base_optimizer = torch.optim.SGD([base_model.x], lr=0.1)
+
+        # Updating meta weights (phi).
+        meta_optimizer.step()
+
+    return learned_loss
+
+
+def learned_procedural_biases_bmg(func):
+
+    learned_optimizer = OptimizerNetwork()
+    learned_loss = LossNetwork()
+
+    # Defining the outer optimizer for the meta-loss network.
+    meta_param = [
+        {"params": learned_optimizer.parameters(), "lr": 0.001},
+        {"params": learned_loss.parameters(), "lr": 0.001}
+    ]
+
+    meta_optimizer = torch.optim.Adam(meta_param, lr=0.001)
+
+    # Performing the offline initialization phase to learn the learned loss functions parameters (phi).
+    for step in tqdm.tqdm(range(200), desc="NPBML+BMG"):
+
+        # Clearing the gradient cache.
+        meta_optimizer.zero_grad()
+
+        # For each training task in the task distribution.
+        for i in range(10):
+
+            base_model = Model()
+            base_optimizer = torch.optim.SGD([base_model.x], lr=0.1)
+
+            # Taking a predetermined number of inner steps before meta update.
+            for inner_steps in range(10):
+
+                # Creating a differentiable optimizer and stateless models via PyTorch higher.
+                with higher.innerloop_ctx(base_model, base_optimizer, copy_initial_weights=False) as (fmodel, diffopt):
+
+                    y = fmodel(func)  # Calculating the loss at the given point.
+                    warp_y = learned_optimizer(y)  # Warping the loss via a learned optimizer.
+                    base_loss = learned_loss(fmodel.x, warp_y)
+                    diffopt.step(base_loss)  # Update base network weights (theta).
+
+            # Creating a copy of the base model for generating a bootstrapping target.
+            bootstrapped_model = copy.deepcopy(base_model)
+            bootstrapped_model.load_state_dict(copy.deepcopy(fmodel.state_dict()))
+            bootstrapped_optimizer = torch.optim.Adam(bootstrapped_model.parameters(), 0.1)
+
+            # Taking a predetermined number of bootstrapping steps.
+            for _ in range(10):
+                bootstrapped_optimizer.zero_grad()  # Clearing out the gradient cache.
+                y = bootstrapped_model(func)  # Computing the base network predictions on query.
+                y.backward()  # Computing the gradients wrt. to the loss.
+                bootstrapped_optimizer.step()  # Updating the model parameters.
+
+            # Computing the task loss and storing the change to the meta weights.
+            task_loss = ((bootstrapped_model.x - fmodel.x) ** 2).sum()  # Loss to the (approx) optimal solution.
+            task_loss.backward()  # Accumulates gradients wrt. to meta parameters.
+
+        # Updating meta weights (phi).
+        meta_optimizer.step()
+
+    return learned_optimizer, learned_loss
+
+
 # ============================================================
 # Functions for generating 2D and 3D static visualizations.
 # ============================================================
@@ -441,7 +616,7 @@ def plot_landscape_3d_multi(func, a, b, s, trajectories, loss_functions, optimiz
 
     # Colours to use for the surfaces and trajectories.
     surface_colors = ["#ad67ca", "#7881c4", "#78b3c4", "#82b1aa", "#6fbc8b"]
-    path_colors = ["#3a3a3a", "#3a3a3a", "#3a3a3a", "#3a3a3a", "#3a3a3a"] # ["#3a3a3a", "#3a3a3a", "#3a3a3a", "#924444", "#ce5353"]
+    path_colors = ["#3a3a3a", "#924444", "#ce5353", "#3a3a3a", "#3a3a3a"]
 
     # Create a grid of points
     x = torch.linspace(-3, 3, 300)  # X values
@@ -498,7 +673,7 @@ def plot_landscape_3d_single(func, a, b, s, trajectories, save=False, file_name=
     fig, axes = plt.subplots(figsize=(10, 8), nrows=1, ncols=1, subplot_kw={"projection": "3d"})
 
     # Colours to use for the trajectories.
-    path_colors = ["#3a3a3a", "#3a3a3a", "#3a3a3a", "#924444", "#ce5353"]
+    path_colors = ["#3a3a3a", "#924444", "#ce5353", "#3a3a3a", "#3a3a3a"]
 
     # Create a grid of points
     x = torch.linspace(-3, 3, 300)  # X values
@@ -545,7 +720,7 @@ def plot_landscape_2d_multi(func, a, b, s, trajectories, loss_functions, optimiz
         nrows=1, ncols=len(trajectories)
     )
 
-    path_colors = ["#3a3a3a", "#3a3a3a", "#3a3a3a", "#924444", "#ce5353"]
+    path_colors = ["#3a3a3a", "#924444", "#ce5353", "#3a3a3a", "#3a3a3a"]
 
     # Create a grid of points
     x = torch.linspace(-3, 3, 300)  # X values
@@ -595,7 +770,7 @@ def plot_landscape_2d_single(func, a, b, s, trajectories, save=False, file_name=
     fig, axes = plt.subplots(figsize=(8, 8), nrows=1, ncols=1)
 
     # Colours to use for the trajectories.
-    path_colors = ["#3a3a3a", "#3a3a3a", "#3a3a3a", "#924444", "#ce5353"]
+    path_colors = ["#3a3a3a", "#924444", "#ce5353", "#3a3a3a", "#3a3a3a"]
 
     # Create a grid of points
     x = torch.linspace(-3, 3, 300)  # X values
@@ -639,7 +814,7 @@ def animate_landscape_3d_single(func, a, b, s, trajectories, save=False, file_na
     ax = fig.add_subplot(111, projection="3d")
 
     # Colours to use for the trajectories.
-    path_colors = ["#3a3a3a", "#3a3a3a", "#3a3a3a", "#924444", "#ce5353"]
+    path_colors = ["#3a3a3a", "#924444", "#ce5353", "#3a3a3a", "#3a3a3a"]
 
     # Create a grid of points
     x = torch.linspace(-3, 3, 300)  # X values uniformly spaced.
@@ -696,7 +871,7 @@ def animate_landscape_3d_multi(func, a, b, s, trajectories, loss_functions, opti
 
     # Colours to use for the surfaces and trajectories.
     surface_colors = ["#ad67ca", "#7881c4", "#78b3c4", "#82b1aa", "#6fbc8b"]
-    path_colors = ["#3a3a3a", "#3a3a3a", "#3a3a3a", "#3a3a3a", "#3a3a3a"]  # ["#3a3a3a", "#3a3a3a", "#3a3a3a", "#924444", "#ce5353"]
+    path_colors = ["#3a3a3a", "#924444", "#ce5353", "#3a3a3a", "#3a3a3a"]
 
     # Create a grid of points
     x = torch.linspace(-3, 3, 300)  # X values uniformly spaced.
@@ -765,7 +940,7 @@ def animate_landscape_2d_single(func, a, b, s, trajectories, save=False, file_na
     ax = fig.add_subplot(111)
 
     # Colours to use for the trajectories.
-    path_colors = ["#3a3a3a", "#3a3a3a", "#3a3a3a", "#924444", "#ce5353"]
+    path_colors = ["#3a3a3a", "#924444", "#ce5353", "#3a3a3a", "#3a3a3a"]
 
     # Create a grid of points
     x = torch.linspace(-3, 3, 300)  # X values uniformly spaced.
@@ -813,7 +988,7 @@ def animate_landscape_2d_multi(func, a, b, s, trajectories, loss_functions, opti
     fig, axes = plt.subplots(figsize=(len(loss_functions) * 7, 6), nrows=1, ncols=len(loss_functions))
 
     # Colours to use for the trajectories.
-    path_colors = ["#3a3a3a", "#3a3a3a", "#3a3a3a", "#924444", "#ce5353"]
+    path_colors = ["#3a3a3a", "#924444", "#ce5353", "#3a3a3a", "#3a3a3a"]
 
     # Create a grid of points
     x = torch.linspace(-3, 3, 300)  # X values uniformly spaced.

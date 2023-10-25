@@ -29,7 +29,7 @@ def compute_results():
         print(path)
 
         # Iterating over the random seeds/executions.
-        for i in range(10,20):
+        for i in range(10, 20):
 
             # Loading the json file into a dictionary.
             res = json.load(open(path + "-" + str(i) + ".json"))
@@ -52,7 +52,10 @@ def compute_results():
 def plot_learning_curve():
 
     paths = [
-        "results/miniimagenet/maml-miniimagenet-conv4-5way-1shot"
+        #"results/miniimagenet/warpgrad-miniimagenet-linearwarpconv-5way-1shot",
+
+        "results/miniimagenet/warpgrad-miniimagenet-warpconv-5way-1shot-12.json",
+        "results/miniimagenet/warpgrad-miniimagenet-warpconv-5way-1shot-13.json"
     ]
 
     # Setting the plot settings.
@@ -62,26 +65,20 @@ def plot_learning_curve():
     plt.rcParams["figure.figsize"] = (4.25, 5)  # (8, 4.5)
 
     # Name of the methods and their respective plotting colors.
-    method_names = ["MAML", "NPBML", "", "", ""]
-    color_values = ["#6cbb6c", "#eaa825", "#db4646", "#78b3c4", "#7881c4", ]
+    method_names = ["CA-0.01", "CA-0.05"]
 
     # Iterating over the different methods.
-    for path, method, color in zip(paths, method_names, color_values):
-        res_task_loss = []
+    for path, method in zip(paths, method_names):
 
-        # Iterating over the random seeds/executions.
-        for seed in [2017]: #range(1):
+        # Loading the json file into a dictionary.
+        results = json.load(open(path))
 
-            # Loading the json file into a dictionary.
-            results = json.load(open(path + "-" + str(seed) + ".json"))
-
-            # Adding updated results to the current methods list.
-            res_task_loss.append(results["meta_training_history"])
+        # Extracting the learning curve from the json file.
+        loss = results["meta_training_history"]
 
         # Computing the average learning curve.
-        task_loss = np.mean(res_task_loss, axis=0).flatten()
-        plt.plot(np.linspace(0, len(res_task_loss[0]), len(task_loss)),
-                 task_loss, color=color, label=method, linewidth=3)
+        plt.plot(np.linspace(0, len(loss), len(loss)), loss, linewidth=3, label=method)
+        print(method, "=", str(round(results["testing_mean"], 5)))
 
     plt.ylabel("Error")
     plt.grid(alpha=0.5)

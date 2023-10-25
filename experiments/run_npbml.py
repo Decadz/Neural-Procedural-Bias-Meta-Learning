@@ -81,7 +81,7 @@ def _run_experiment(dataset, model, config, random_state):
     """
     # Creating the base model's *meta* optimizer.
     meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
-        list(base_model.adapt_parameters()) + list(base_model.warp_parameters()) + list(learned_loss.parameters()),
+        list(base_model.parameters()) + list(learned_loss.parameters()),
         **config["meta_optimizer_settings"])
 
     # Creating the base model's *base* optimizer.
