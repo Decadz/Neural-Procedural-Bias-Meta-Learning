@@ -56,6 +56,4 @@ matching_loss_function: "mseloss"
 # Experiment Settings
 output_path: results/omniglot/
 input_channels: 1
-num_filters: 64
-
 verbose: 2

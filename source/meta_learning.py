@@ -31,7 +31,9 @@ def meta_training(base_model, meta_optimizer, base_optimizer, base_bootstrapped_
             # Creating a differentiable optimizer and stateless models via PyTorch higher.
             with higher.innerloop_ctx(base_model, base_optimizer, copy_initial_weights=False) as (fmodel, diffopt):
 
+                # TODO - TESTING CODE
                 fmodel.init_adaptation()
+                # TODO - TESTING CODE
 
                 # Taking a predetermined number of inner steps before meta update.
                 for _ in range(base_gradient_steps):
@@ -60,7 +62,7 @@ def meta_training(base_model, meta_optimizer, base_optimizer, base_bootstrapped_
                     # Creating a copy of the base model for generating a bootstrapping target.
                     bootstrapped_model = copy.deepcopy(base_model)
                     bootstrapped_model.load_state_dict(copy.deepcopy(fmodel.state_dict()))
-                    bootstrapped_optimizer = base_bootstrapped_optimizer(bootstrapped_model.parameters())
+                    bootstrapped_optimizer = base_bootstrapped_optimizer(bootstrapped_model.adapt_parameters())
 
                     # Taking a predetermined number of bootstrapping steps.
                     for _ in range(base_bootstrapped_gradient_steps):
@@ -71,8 +73,8 @@ def meta_training(base_model, meta_optimizer, base_optimizer, base_bootstrapped_
                         bootstrapped_optimizer.step()  # Updating the model parameters.
 
                     # Performing the meta-update by using a matching function.
-                    target_output = torch.nn.utils.parameters_to_vector(fmodel.parameters())
-                    target_bootstrapped = torch.nn.utils.parameters_to_vector(bootstrapped_model.parameters())
+                    target_output = torch.nn.utils.parameters_to_vector(fmodel.adapt_parameters())
+                    target_bootstrapped = torch.nn.utils.parameters_to_vector(bootstrapped_model.adapt_parameters())
                     task_loss = matching_function(target_output, target_bootstrapped)
                     task_loss.div_(meta_batch_size)
                     task_loss.backward()
@@ -110,7 +112,9 @@ def meta_testing(base_model, base_optimizer, dataset, base_gradient_steps, loss_
         with higher.innerloop_ctx(base_model, base_optimizer, copy_initial_weights=False,
                                   track_higher_grads=False) as (fmodel, diffopt):
 
+            # TODO - TESTING CODE
             fmodel.init_adaptation()
+            # TODO - TESTING CODE
 
             # Taking a predetermined number of inner steps before meta update.
             for _ in range(base_gradient_steps):

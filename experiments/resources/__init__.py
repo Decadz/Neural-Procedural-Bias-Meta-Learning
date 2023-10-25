@@ -1,7 +1,11 @@
 
 # Importing the base-networks.
-from experiments.resources.models.conv import Conv4, LinearWarpConv4, WarpConv4
-from experiments.resources.models.resnet import ResNet, WideResNet, WarpResNet, WarpWideResNet
+from experiments.resources.models.conv import Conv, WideConv
+from experiments.resources.models.conv import LinearWarpConv, LinearWarpWideConv
+from experiments.resources.models.conv import WarpConv, WarpWideConv
+from experiments.resources.models.resnet import ResNet, WideResNet
+from experiments.resources.models.resnet import LinearWarpResNet, LinearWarpWideResNet
+from experiments.resources.models.resnet import WarpResNet, WarpWideResNet
 
 # Importing the meta-learning datasets.
 from experiments.resources.datasets import Omniglot
@@ -54,13 +58,18 @@ dataset_archive = {
 
 
 model_archive = {
-    "conv": Conv4,
-    "warpconv": WarpConv4,
-    "linearwarpconv": LinearWarpConv4,
+    "conv": Conv,
+    "wideconv": WideConv,
+    "linearwarpconv": LinearWarpConv,
+    "linearwarpwideconv": LinearWarpWideConv,
+    "warpconv": WarpConv,
+    "warpwideconv": WarpWideConv,
     "resnet": ResNet,
+    "wideresnet": WideResNet,
+    "linearwarpresnet": LinearWarpResNet,
+    "linearwarpwideresnet": LinearWarpWideResNet,
     "warpresnet": WarpResNet,
-    "wrn": WideResNet,
-    "warpwrn": WarpWideResNet,
+    "warpwideresnet": WarpWideResNet,
 }
 
 objective_archive = {

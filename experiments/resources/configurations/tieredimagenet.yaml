@@ -56,5 +56,4 @@ matching_loss_function: "mseloss"
 # Experiment Settings
 output_path: results/tieredimagenet/
 input_channels: 3
-num_filters: 32
 verbose: 2
