@@ -4,14 +4,14 @@ import torch
 
 class _ResNet(torch.nn.Module):
 
-    def __init__(self, block_config, input_channels=3, num_ways=5, **kwargs):
+    def __init__(self, block_config, input_channels=3, track_running_stats=False, num_ways=5, **kwargs):
         super(_ResNet, self).__init__()
 
         self.encoder = torch.nn.Sequential(collections.OrderedDict([
-            ("block1", _ConvBlock(input_channels, block_config[0])),
-            ("block2", _ConvBlock(block_config[0], block_config[1])),
-            ("block3", _ConvBlock(block_config[1], block_config[2])),
-            ("block4", _ConvBlock(block_config[2], block_config[3])),
+            ("block1", _ConvBlock(input_channels, block_config[0], track_running_stats=track_running_stats)),
+            ("block2", _ConvBlock(block_config[0], block_config[1], track_running_stats=track_running_stats)),
+            ("block3", _ConvBlock(block_config[1], block_config[2], track_running_stats=track_running_stats)),
+            ("block4", _ConvBlock(block_config[2], block_config[3], track_running_stats=track_running_stats)),
             ("adaPool", torch.nn.AdaptiveAvgPool2d(1)),
             ("flatten", torch.nn.Flatten())
         ]))
@@ -52,18 +52,24 @@ class _ResNet(torch.nn.Module):
 
 class _WarpResNet(torch.nn.Module):
 
-    def __init__(self, block_config, nonlinear=False, input_channels=3, num_ways=5, **kwargs):
+    def __init__(self, block_config, nonlinear=False, track_running_stats=False,
+                 input_channels=3, num_ways=5, **kwargs):
+
         super(_WarpResNet, self).__init__()
 
         self.encoder = torch.nn.Sequential(collections.OrderedDict([
-            ("block1", _ConvBlock(input_channels, block_config[0])),
-            ("warp1", _WarpBlock(block_config[0], block_config[0], nonlinearity=nonlinear, batch_norm=nonlinear)),
-            ("block2", _ConvBlock(block_config[0], block_config[1])),
-            ("warp2", _WarpBlock(block_config[1], block_config[1], nonlinearity=nonlinear, batch_norm=nonlinear)),
-            ("block3", _ConvBlock(block_config[1], block_config[2])),
-            ("warp3", _WarpBlock(block_config[2], block_config[2], nonlinearity=nonlinear, batch_norm=nonlinear)),
-            ("block4", _ConvBlock(block_config[2], block_config[3])),
-            ("warp4", _WarpBlock(block_config[3], block_config[3], nonlinearity=nonlinear, batch_norm=nonlinear)),
+            ("block1", _ConvBlock(input_channels, block_config[0], track_running_stats=track_running_stats)),
+            ("warp1", _WarpBlock(block_config[0], block_config[0], nonlinearity=nonlinear,
+                                 batch_norm=nonlinear, track_running_stats=track_running_stats)),
+            ("block2", _ConvBlock(block_config[0], block_config[1], track_running_stats=track_running_stats)),
+            ("warp2", _WarpBlock(block_config[1], block_config[1], nonlinearity=nonlinear,
+                                 batch_norm=nonlinear, track_running_stats=track_running_stats)),
+            ("block3", _ConvBlock(block_config[1], block_config[2], track_running_stats=track_running_stats)),
+            ("warp3", _WarpBlock(block_config[2], block_config[2], nonlinearity=nonlinear,
+                                 batch_norm=nonlinear, track_running_stats=track_running_stats)),
+            ("block4", _ConvBlock(block_config[2], block_config[3], track_running_stats=track_running_stats)),
+            ("warp4", _WarpBlock(block_config[3], block_config[3], nonlinearity=nonlinear,
+                                 batch_norm=nonlinear, track_running_stats=track_running_stats)),
             ("adaPool", torch.nn.AdaptiveAvgPool2d(1)),
             ("flatten", torch.nn.Flatten())
         ]))
@@ -118,22 +124,29 @@ class _WarpResNet(torch.nn.Module):
                 m.reset_running_stats()
 
 
+# ============================================================
+# Network block definitions.
+# ============================================================
+
+
 class _ConvBlock(torch.nn.Module):
 
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, track_running_stats=False):
         super(_ConvBlock, self).__init__()
         self.in_planes = in_channels
         self.planes = out_channels
 
         self.conv1 = torch.nn.Conv2d(in_channels, out_channels, 3, 1, padding=1, bias=False)
-        self.bn1 = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
+        self.bn1 = torch.nn.BatchNorm2d(out_channels, track_running_stats=track_running_stats)
+
         self.conv2 = torch.nn.Conv2d(out_channels, out_channels, 3, 1, padding=1, bias=False)
-        self.bn2 = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
+        self.bn2 = torch.nn.BatchNorm2d(out_channels, track_running_stats=track_running_stats)
+
         self.conv3 = torch.nn.Conv2d(out_channels, out_channels, 3, 1, padding=1, bias=False)
-        self.bn3 = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
+        self.bn3 = torch.nn.BatchNorm2d(out_channels, track_running_stats=track_running_stats)
 
         self.res_conv = torch.nn.Conv2d(in_channels, out_channels, 1, 1, padding=0, bias=False)
-        self.bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
+        self.bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=track_running_stats)
 
         self.relu = torch.nn.LeakyReLU(0.1, inplace=True)
         self.pool = torch.nn.MaxPool2d(2)
@@ -159,14 +172,14 @@ class _ConvBlock(torch.nn.Module):
 class _WarpBlock(torch.nn.Module):
 
     def __init__(self, in_channels, out_channels, nonlinearity=True, batch_norm=True,
-                 stacked_conv=False, residual_connection=False):
+                 stacked_conv=False, residual_connection=False, track_running_stats=False):
 
         super(_WarpBlock, self).__init__()
 
         self.conv1 = torch.nn.Conv2d(in_channels, out_channels, 3, padding=1)
 
         if batch_norm:
-            self.bn_in = torch.nn.BatchNorm2d(in_channels, track_running_stats=False)
+            self.bn_in = torch.nn.BatchNorm2d(in_channels, track_running_stats=track_running_stats)
 
         self.activation1 = torch.nn.LeakyReLU(inplace=True) if nonlinearity else torch.nn.Identity()
 
@@ -175,7 +188,7 @@ class _WarpBlock(torch.nn.Module):
             self.activation2 = torch.nn.LeakyReLU(inplace=True) if nonlinearity else torch.nn.Identity()
 
         if batch_norm and residual_connection:
-            self.bn_out = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
+            self.bn_out = torch.nn.BatchNorm2d(out_channels, track_running_stats=track_running_stats)
 
         self.nonlinearity = nonlinearity
         self.batch_norm = batch_norm
@@ -203,6 +216,11 @@ class _WarpBlock(torch.nn.Module):
             h = self.bn_out(h)
 
         return h
+
+
+# ============================================================
+# Model Variants.
+# ============================================================
 
 
 class ResNet(_ResNet):

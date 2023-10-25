@@ -32,8 +32,9 @@ def register_configurations(parser):
 
     # Experiment Settings.
     parser.add_argument("--fast", required=False, default=False, type=lambda x: (str(x).lower() == 'true'))
-    parser.add_argument("--output_path", required=False, type=str)
+    parser.add_argument("--track_running_stats", required=False, type=lambda x: (str(x).lower() == 'true'))
     parser.add_argument("--input_channels", required=False, type=int)
+    parser.add_argument("--output_path", required=False, type=str)
     parser.add_argument("--verbose", required=False, type=int)
 
 

@@ -4,14 +4,14 @@ import torch
 
 class _Conv(torch.nn.Module):
 
-    def __init__(self, input_channels=1, num_filters=32, num_ways=5, **kwargs):
+    def __init__(self, input_channels=1, num_filters=32, track_running_stats=False, num_ways=5, **kwargs):
         super(_Conv, self).__init__()
 
         self.encoder = torch.nn.Sequential(collections.OrderedDict([
-            ("block1", _ConvBlock(input_channels, num_filters)),
-            ("block2", _ConvBlock(num_filters, num_filters)),
-            ("block3", _ConvBlock(num_filters, num_filters)),
-            ("block4", _ConvBlock(num_filters, num_filters)),
+            ("block1", _ConvBlock(input_channels, num_filters, track_running_stats=track_running_stats)),
+            ("block2", _ConvBlock(num_filters, num_filters, track_running_stats=track_running_stats)),
+            ("block3", _ConvBlock(num_filters, num_filters, track_running_stats=track_running_stats)),
+            ("block4", _ConvBlock(num_filters, num_filters, track_running_stats=track_running_stats)),
             ("flatten", torch.nn.Flatten())
         ]))
 
@@ -62,18 +62,24 @@ class _Conv(torch.nn.Module):
 
 class _WarpConv4(torch.nn.Module):
 
-    def __init__(self, nonlinear=False, input_channels=3, num_filters=32, num_ways=5, **kwargs):
+    def __init__(self, nonlinear=False, input_channels=3, num_filters=32,
+                 track_running_stats=False, num_ways=5, **kwargs):
+
         super(_WarpConv4, self).__init__()
 
         self.encoder = torch.nn.Sequential(collections.OrderedDict([
-            ("adapt1", _ConvBlock(input_channels, num_filters)),
-            ("warp1", _WarpBlock(num_filters, num_filters, nonlinearity=nonlinear, batch_norm=nonlinear)),
-            ("adapt2", _ConvBlock(num_filters, num_filters)),
-            ("warp2", _WarpBlock(num_filters, num_filters, nonlinearity=nonlinear, batch_norm=nonlinear)),
-            ("adapt3", _ConvBlock(num_filters, num_filters)),
-            ("warp3", _WarpBlock(num_filters, num_filters, nonlinearity=nonlinear, batch_norm=nonlinear)),
-            ("adapt4", _ConvBlock(num_filters, num_filters)),
-            ("warp4", _WarpBlock(num_filters, num_filters, nonlinearity=nonlinear, batch_norm=nonlinear)),
+            ("adapt1", _ConvBlock(input_channels, num_filters, track_running_stats=track_running_stats)),
+            ("warp1", _WarpBlock(num_filters, num_filters, nonlinearity=nonlinear,
+                                 batch_norm=nonlinear, track_running_stats=track_running_stats)),
+            ("adapt2", _ConvBlock(num_filters, num_filters, track_running_stats=track_running_stats)),
+            ("warp2", _WarpBlock(num_filters, num_filters, nonlinearity=nonlinear,
+                                 batch_norm=nonlinear, track_running_stats=track_running_stats)),
+            ("adapt3", _ConvBlock(num_filters, num_filters, track_running_stats=track_running_stats)),
+            ("warp3", _WarpBlock(num_filters, num_filters, nonlinearity=nonlinear,
+                                 batch_norm=nonlinear, track_running_stats=track_running_stats)),
+            ("adapt4", _ConvBlock(num_filters, num_filters, track_running_stats=track_running_stats)),
+            ("warp4", _WarpBlock(num_filters, num_filters, nonlinearity=nonlinear,
+                                 batch_norm=nonlinear, track_running_stats=track_running_stats)),
             ("flatten", torch.nn.Flatten())
         ]))
 
@@ -138,13 +144,18 @@ class _WarpConv4(torch.nn.Module):
                 m.reset_running_stats()
 
 
+# ============================================================
+# Network block definitions.
+# ============================================================
+
+
 class _ConvBlock(torch.nn.Module):
 
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, track_running_stats=False):
         super(_ConvBlock, self).__init__()
 
         self.conv = torch.nn.Conv2d(in_channels, out_channels, 3, padding=1)
-        self.bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
+        self.bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=track_running_stats)
         self.relu = torch.nn.LeakyReLU(inplace=True)
         self.pool = torch.nn.MaxPool2d(2)
 
@@ -158,14 +169,14 @@ class _ConvBlock(torch.nn.Module):
 class _WarpBlock(torch.nn.Module):
 
     def __init__(self, in_channels, out_channels, nonlinearity=True, batch_norm=True,
-                 stacked_conv=False, residual_connection=False):
+                 stacked_conv=False, residual_connection=False, track_running_stats=False):
         
         super(_WarpBlock, self).__init__()
 
         self.conv1 = torch.nn.Conv2d(in_channels, out_channels, 3, padding=1)
 
         if batch_norm:
-            self.bn_in = torch.nn.BatchNorm2d(in_channels, track_running_stats=False)
+            self.bn_in = torch.nn.BatchNorm2d(in_channels, track_running_stats=track_running_stats)
 
         self.activation1 = torch.nn.LeakyReLU(inplace=True) if nonlinearity else torch.nn.Identity()
 
@@ -174,7 +185,7 @@ class _WarpBlock(torch.nn.Module):
             self.activation2 = torch.nn.LeakyReLU(inplace=True) if nonlinearity else torch.nn.Identity()
 
         if batch_norm and residual_connection:
-            self.bn_out = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
+            self.bn_out = torch.nn.BatchNorm2d(out_channels, track_running_stats=track_running_stats)
 
         self.nonlinearity = nonlinearity
         self.batch_norm = batch_norm
@@ -202,6 +213,11 @@ class _WarpBlock(torch.nn.Module):
             h = self.bn_out(h)
 
         return h
+
+
+# ============================================================
+# Model Variants.
+# ============================================================
 
 
 class Conv(_Conv):
