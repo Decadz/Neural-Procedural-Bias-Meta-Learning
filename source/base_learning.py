@@ -33,6 +33,9 @@ def pretraining(model, optimizer, scheduler, training, validation, num_ways, num
     # Objects for keeping track of the learning history.
     checkpointer = _StateCheckpointer(validation, num_ways, num_shots, performance_metric)
 
+    # A list for keeping track of the fine-tuning training accuracy.
+    fine_tuning_history = []
+
     # Looping until the maximum number of gradient steps is reached.
     for step in (training_progress := tqdm.tqdm(
             range(gradient_steps), position=0, dynamic_ncols=True,
@@ -60,8 +63,12 @@ def pretraining(model, optimizer, scheduler, training, validation, num_ways, num
         performance = checkpointer.checkpoint(model, step)
         training_progress.set_description("Performance " + str(round(performance, 4)))
 
+        # Recording the fine-tuning accuracy.
+        performance = performance_metric(y_pred, y).item()
+        fine_tuning_history.append(performance)
+
     # Returning the training history and the best performing base model.
-    return checkpointer.performance_history, checkpointer.best_model
+    return checkpointer.best_model, checkpointer.performance_history, fine_tuning_history
 
 
 class _StateCheckpointer(torch.nn.Module):

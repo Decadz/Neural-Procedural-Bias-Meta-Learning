@@ -89,7 +89,7 @@ def _run_experiment(dataset, model, config, random_state):
     pretrain_scheduler = scheduler_archive[config["pretrain_scheduler_name"]](
         pretrain_optimizer, **config["pretrain_scheduler_settings"])
 
-    transfer_history, base_model = pretraining(
+    base_model, meta_history, fine_tuning_history  = pretraining(
         base_model, pretrain_optimizer, pretrain_scheduler, training, validation,
         gradient_steps=config["pretrain_gradient_steps"],
         batch_size=config["pretrain_batch_size"],
@@ -106,6 +106,10 @@ def _run_experiment(dataset, model, config, random_state):
 
     # Create a new dense/linear layer and replacing the last layer with the new layer.
     base_model.output_layer = torch.nn.Linear(old_output_layer.in_features, config["num_ways"]).to(device)
+    
+    # Initializing the head of the network.
+    torch.nn.init.normal_(base_model.output_layer.weight, 0, 0.01)
+    base_model.output_layer.bias.data.zero_()
 
     # Saving the pretrained model.
     export_model(base_model, res_directory, args.dataset + "-" + args.model + "-" +
@@ -115,7 +119,8 @@ def _run_experiment(dataset, model, config, random_state):
     results["experiment_configuration"] = config.copy()
 
     # Recording the training history.
-    results["transfer_history"] = transfer_history
+    results["meta_history"] = meta_history
+    results["fine_tuning_history"] = fine_tuning_history
 
     # Exporting the results to a json file.
     export_results(results, res_directory, file_name)
