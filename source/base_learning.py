@@ -59,6 +59,9 @@ def pretraining(model, optimizer, scheduler, training, validation, num_ways, num
         if scheduler is not None:
             scheduler.step()
 
+        # Resetting any batch normalization layer.
+        model.reset_batch_norm()
+
         # Checkpointing the model and returning the validation performance.
         performance = checkpointer.checkpoint(model, step)
         training_progress.set_description("Performance " + str(round(performance, 4)))
