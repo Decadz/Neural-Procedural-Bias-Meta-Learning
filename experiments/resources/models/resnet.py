@@ -145,16 +145,16 @@ class _ConvBlock(torch.nn.Module):
         self.in_planes = in_channels
         self.planes = out_channels
 
-        self.conv1 = torch.nn.Conv2d(in_channels, out_channels, 3, 1, padding=1, bias=False)
+        self.conv1 = torch.nn.Conv2d(in_channels, out_channels, 3, 1, padding=1)
         self.bn1 = torch.nn.BatchNorm2d(out_channels, track_running_stats=track_running_stats)
 
-        self.conv2 = torch.nn.Conv2d(out_channels, out_channels, 3, 1, padding=1, bias=False)
+        self.conv2 = torch.nn.Conv2d(out_channels, out_channels, 3, 1, padding=1)
         self.bn2 = torch.nn.BatchNorm2d(out_channels, track_running_stats=track_running_stats)
 
-        self.conv3 = torch.nn.Conv2d(out_channels, out_channels, 3, 1, padding=1, bias=False)
+        self.conv3 = torch.nn.Conv2d(out_channels, out_channels, 3, 1, padding=1)
         self.bn3 = torch.nn.BatchNorm2d(out_channels, track_running_stats=track_running_stats)
 
-        self.res_conv = torch.nn.Conv2d(in_channels, out_channels, 1, 1, padding=0, bias=False)
+        self.res_conv = torch.nn.Conv2d(in_channels, out_channels, 1, 1, padding=0)
         self.bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=track_running_stats)
 
         self.relu = torch.nn.ReLU(inplace=True)
@@ -181,6 +181,7 @@ class _ConvBlock(torch.nn.Module):
         for module in self.modules():
             if isinstance(module, torch.nn.Conv2d):
                 torch.nn.init.normal_(module.weight, 0, 0.01)
+                module.bias.data.zero_()
             elif isinstance(module, torch.nn.BatchNorm2d):
                 module.weight.data.fill_(1)
                 module.bias.data.zero_()
