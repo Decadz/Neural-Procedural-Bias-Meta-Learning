@@ -11,8 +11,6 @@ import numpy
 import time
 import yaml
 
-# python experiments/run_pretraining.py --dataset miniimagenet --model conv --num_ways 5 --num_shots 1 --seeds 0 --device cuda:0
-
 # Use the GPU/CUDA when available, else use the CPU.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -83,16 +81,16 @@ def _run_experiment(dataset, model, config, random_state):
     ).to(device)
 
     # Creating the base model's *meta* optimizer.
-    pretrain_optimizer = optimizer_archive[config["pretrain_optimizer_name"]](
-        base_model.parameters(), **config["pretrain_optimizer_settings"])
+    pretrain_optimizer = optimizer_archive[config["pretraining_optimizer_name"]](
+        base_model.adapt_parameters(), **config["pretraining_optimizer_settings"])
 
-    pretrain_scheduler = scheduler_archive[config["pretrain_scheduler_name"]](
-        pretrain_optimizer, **config["pretrain_scheduler_settings"])
+    pretrain_scheduler = scheduler_archive[config["pretraining_scheduler_name"]](
+        pretrain_optimizer, **config["pretraining_scheduler_settings"])
 
     base_model, meta_history, fine_tuning_history  = pretraining(
         base_model, pretrain_optimizer, pretrain_scheduler, training, validation,
-        gradient_steps=config["pretrain_gradient_steps"],
-        batch_size=config["pretrain_batch_size"],
+        gradient_steps=config["pretraining_gradient_steps"],
+        batch_size=config["pretraining_batch_size"],
         loss_function=objective_archive[config["task_loss_function"]],
         performance_metric=objective_archive[config["evaluation_metric"]],
         device=device, **config

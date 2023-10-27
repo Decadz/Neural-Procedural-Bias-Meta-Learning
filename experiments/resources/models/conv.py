@@ -15,6 +15,7 @@ class _Conv(torch.nn.Module):
             ("flatten", torch.nn.Flatten())
         ]))
 
+        # Determining the number of inputs to the head.
         if input_channels == 3 and num_filters == 32:
             linear_in = 800
         elif input_channels == 3 and num_filters == 64:
@@ -24,6 +25,7 @@ class _Conv(torch.nn.Module):
         elif input_channels == 1 and num_filters == 64:
             linear_in = 64
 
+        # Creating and initializing the head of the network.
         self.output_layer = torch.nn.Linear(linear_in, num_ways)
 
         # Model configuration hyper-parameters.
@@ -32,32 +34,34 @@ class _Conv(torch.nn.Module):
         self.num_ways = num_ways
 
         # Initializing the model's parameters.
-        for module in self.modules():
-            if isinstance(module, torch.nn.Conv2d):
-                torch.nn.init.normal_(module.weight, 0, 0.01)
-                module.bias.data.zero_()
-            elif isinstance(module, torch.nn.Linear):
-                torch.nn.init.normal_(module.weight, 0, 0.01)
-                module.bias.data.zero_()
-            elif isinstance(module, torch.nn.BatchNorm2d):
-                module.weight.data.fill_(1)
-                module.bias.data.zero_()
+        self.initialize()
 
     def forward(self, x):
         x = self.encoder(x)
         return self.output_layer(x)
-    
+
+    def initialize(self):
+        # Initializing the encode network.
+        for name, module in self.encoder.named_children():
+            if isinstance(module, _ConvBlock):
+                module.initialize()
+
+        # Initializing the head of the network.
+        torch.nn.init.normal_(self.output_layer.weight, 0, 0.01)
+        self.output_layer.bias.data.zero_()
+
+    def reset_batch_norm(self):
+        # Method for resetting the batch norm statistics.
+        for module in self.modules():
+            if hasattr(module, 'reset_running_stats'):
+                module.reset_running_stats()
+
     def adapt_parameters(self):
         return self.parameters()
         
     def warp_parameters(self):
         return self.parameters()
-
-    def init_adaptation(self):
-        # Function for resetting the batch norm statistics.
-        for m in self.modules():
-            if hasattr(m, 'reset_running_stats'):
-                m.reset_running_stats()
+    
 
 
 class _WarpConv4(torch.nn.Module):
@@ -83,6 +87,7 @@ class _WarpConv4(torch.nn.Module):
             ("flatten", torch.nn.Flatten())
         ]))
 
+        # Determining the number of inputs to the head.
         if input_channels == 3 and num_filters == 32:
             linear_in = 800
         elif input_channels == 3 and num_filters == 64:
@@ -92,28 +97,38 @@ class _WarpConv4(torch.nn.Module):
         elif input_channels == 1 and num_filters == 64:
             linear_in = 64
 
+        # Creating and initializing the head of the network.
         self.output_layer = torch.nn.Linear(linear_in, num_ways)
 
         # Model configuration hyper-parameters.
+        self.track_running_stats = track_running_stats
         self.input_channels = input_channels
         self.num_filters = num_filters
+        self.nonlinear = nonlinear
         self.num_ways = num_ways
 
         # Initializing the model's parameters.
-        for module in self.modules():
-            if isinstance(module, torch.nn.Conv2d):
-                torch.nn.init.normal_(module.weight, 0, 0.01)
-                module.bias.data.zero_()
-            elif isinstance(module, torch.nn.Linear):
-                torch.nn.init.normal_(module.weight, 0, 0.01)
-                module.bias.data.zero_()
-            elif isinstance(module, torch.nn.BatchNorm2d):
-                module.weight.data.fill_(1)
-                module.bias.data.zero_()
+        self.initialize()
 
     def forward(self, x):
         x = self.encoder(x)
         return self.output_layer(x)
+    
+    def initialize(self):
+        # Initializing the encode network.
+        for name, module in self.encoder.named_children():
+            if isinstance(module, _ConvBlock) or isinstance(module, _WarpBlock):
+                module.initialize()
+
+        # Initializing the head of the network.
+        torch.nn.init.normal_(self.output_layer.weight, 0, 0.01)
+        self.output_layer.bias.data.zero_()
+
+    def reset_batch_norm(self):
+        # Method for resetting the batch norm statistics.
+        for module in self.modules():
+            if hasattr(module, 'reset_running_stats'):
+                module.reset_running_stats()
     
     def adapt_parameters(self):
         for param in self.encoder.adapt1.parameters():
@@ -137,12 +152,6 @@ class _WarpConv4(torch.nn.Module):
         for param in self.encoder.warp4.parameters():
             yield param
 
-    def init_adaptation(self):
-        # Function for resetting the batch norm statistics.
-        for m in self.modules():
-            if hasattr(m, 'reset_running_stats'):
-                m.reset_running_stats()
-
 
 # ============================================================
 # Network block definitions.
@@ -156,7 +165,7 @@ class _ConvBlock(torch.nn.Module):
 
         self.conv = torch.nn.Conv2d(in_channels, out_channels, 3, padding=1)
         self.bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=track_running_stats)
-        self.relu = torch.nn.LeakyReLU(inplace=True)
+        self.relu = torch.nn.ReLU(inplace=True)
         self.pool = torch.nn.MaxPool2d(2)
 
     def forward(self, x):
@@ -164,6 +173,15 @@ class _ConvBlock(torch.nn.Module):
         x = self.bn(x)
         x = self.relu(x)
         return self.pool(x)
+    
+    def initialize(self):
+        for module in self.modules():
+            if isinstance(module, torch.nn.Conv2d):
+                torch.nn.init.normal_(module.weight, 0, 0.01)
+                module.bias.data.zero_()
+            elif isinstance(module, torch.nn.BatchNorm2d):
+                module.weight.data.fill_(1)
+                module.bias.data.zero_()
 
 
 class _WarpBlock(torch.nn.Module):
@@ -178,11 +196,11 @@ class _WarpBlock(torch.nn.Module):
         if batch_norm:
             self.bn_in = torch.nn.BatchNorm2d(in_channels, track_running_stats=track_running_stats)
 
-        self.activation1 = torch.nn.LeakyReLU(inplace=True) if nonlinearity else torch.nn.Identity()
+        self.activation1 = torch.nn.ReLU(inplace=True) if nonlinearity else torch.nn.Identity()
 
         if stacked_conv:
             self.conv2 = torch.nn.Conv2d(in_channels, out_channels, 3, padding=1)
-            self.activation2 = torch.nn.LeakyReLU(inplace=True) if nonlinearity else torch.nn.Identity()
+            self.activation2 = torch.nn.ReLU(inplace=True) if nonlinearity else torch.nn.Identity()
 
         if batch_norm and residual_connection:
             self.bn_out = torch.nn.BatchNorm2d(out_channels, track_running_stats=track_running_stats)
@@ -213,6 +231,15 @@ class _WarpBlock(torch.nn.Module):
             h = self.bn_out(h)
 
         return h
+    
+    def initialize(self):
+        for module in self.modules():
+            if isinstance(module, torch.nn.Conv2d):
+                torch.nn.init.dirac_(module.weight)
+                module.bias.data.zero_()
+            elif isinstance(module, torch.nn.BatchNorm2d):
+                module.weight.data.fill_(1)
+                module.bias.data.zero_()
 
 
 # ============================================================

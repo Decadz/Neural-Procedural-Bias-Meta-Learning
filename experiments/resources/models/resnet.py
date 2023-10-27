@@ -16,22 +16,32 @@ class _ResNet(torch.nn.Module):
             ("flatten", torch.nn.Flatten())
         ]))
 
+        # Creating and initializing the head of the network.
         self.output_layer = torch.nn.Linear(block_config[-1], num_ways)
 
         # Model configuration hyper-parameters.
+        self.track_running_stats = track_running_stats
         self.input_channels = input_channels
         self.num_ways = num_ways
 
         # Initializing the model's parameters.
-        for module in self.modules():
-            if isinstance(module, torch.nn.Conv2d):
-                torch.nn.init.normal_(module.weight, 0, 0.01)
-            elif isinstance(module, torch.nn.Linear):
-                torch.nn.init.normal_(module.weight, 0, 0.01)
-                module.bias.data.zero_()
-            elif isinstance(module, torch.nn.BatchNorm2d):
-                module.weight.data.fill_(1)
-                module.bias.data.zero_()
+        self.initialize()
+
+    def initialize(self):
+        # Initializing the encode network.
+        for name, module in self.encoder.named_children():
+            if isinstance(module, _ConvBlock):
+                module.initialize()
+
+        # Initializing the head of the network.
+        torch.nn.init.normal_(self.output_layer.weight, 0, 0.01)
+        self.output_layer.bias.data.zero_()
+
+    def reset_batch_norm(self):
+        # Function for resetting the batch norm statistics.
+        for m in self.modules():
+            if hasattr(m, 'reset_running_stats'):
+                m.reset_running_stats()
 
     def forward(self, x):
         x = self.encoder(x)
@@ -43,12 +53,6 @@ class _ResNet(torch.nn.Module):
     def warp_parameters(self):
         return self.parameters()
 
-    def init_adaptation(self):
-        # Function for resetting the batch norm statistics.
-        for m in self.modules():
-            if hasattr(m, 'reset_running_stats'):
-                m.reset_running_stats()
-
 
 class _WarpResNet(torch.nn.Module):
 
@@ -58,42 +62,53 @@ class _WarpResNet(torch.nn.Module):
         super(_WarpResNet, self).__init__()
 
         self.encoder = torch.nn.Sequential(collections.OrderedDict([
-            ("block1", _ConvBlock(input_channels, block_config[0], track_running_stats=track_running_stats)),
+            ("adapt1", _ConvBlock(input_channels, block_config[0], track_running_stats=track_running_stats)),
             ("warp1", _WarpBlock(block_config[0], block_config[0], nonlinearity=nonlinear,
                                  batch_norm=nonlinear, track_running_stats=track_running_stats)),
-            ("block2", _ConvBlock(block_config[0], block_config[1], track_running_stats=track_running_stats)),
+            ("adapt2", _ConvBlock(block_config[0], block_config[1], track_running_stats=track_running_stats)),
             ("warp2", _WarpBlock(block_config[1], block_config[1], nonlinearity=nonlinear,
                                  batch_norm=nonlinear, track_running_stats=track_running_stats)),
-            ("block3", _ConvBlock(block_config[1], block_config[2], track_running_stats=track_running_stats)),
+            ("adapt3", _ConvBlock(block_config[1], block_config[2], track_running_stats=track_running_stats)),
             ("warp3", _WarpBlock(block_config[2], block_config[2], nonlinearity=nonlinear,
                                  batch_norm=nonlinear, track_running_stats=track_running_stats)),
-            ("block4", _ConvBlock(block_config[2], block_config[3], track_running_stats=track_running_stats)),
+            ("adapt4", _ConvBlock(block_config[2], block_config[3], track_running_stats=track_running_stats)),
             ("warp4", _WarpBlock(block_config[3], block_config[3], nonlinearity=nonlinear,
                                  batch_norm=nonlinear, track_running_stats=track_running_stats)),
             ("adaPool", torch.nn.AdaptiveAvgPool2d(1)),
             ("flatten", torch.nn.Flatten())
         ]))
 
+        # Creating and initializing the head of the network.
         self.output_layer = torch.nn.Linear(block_config[-1], num_ways)
 
         # Model configuration hyper-parameters.
+        self.track_running_stats = track_running_stats
         self.input_channels = input_channels
+        self.nonlinear = nonlinear
         self.num_ways = num_ways
 
         # Initializing the model's parameters.
-        for module in self.modules():
-            if isinstance(module, torch.nn.Conv2d):
-                torch.nn.init.normal_(module.weight, 0, 0.01)
-            elif isinstance(module, torch.nn.Linear):
-                torch.nn.init.normal_(module.weight, 0, 0.01)
-                module.bias.data.zero_()
-            elif isinstance(module, torch.nn.BatchNorm2d):
-                module.weight.data.fill_(1)
-                module.bias.data.zero_()
+        self.initialize()
 
     def forward(self, x):
         x = self.encoder(x)
         return self.output_layer(x)
+
+    def initialize(self):
+        # Initializing the encode network.
+        for name, module in self.encoder.named_children():
+            if isinstance(module, _ConvBlock) or isinstance(module, _WarpBlock):
+                module.initialize()
+
+        # Initializing the head of the network.
+        torch.nn.init.normal_(self.output_layer.weight, 0, 0.01)
+        self.output_layer.bias.data.zero_()
+
+    def reset_batch_norm(self):
+        # Method for resetting the batch norm statistics.
+        for module in self.modules():
+            if hasattr(module, 'reset_running_stats'):
+                module.reset_running_stats()
 
     def adapt_parameters(self):
         for param in self.encoder.adapt1.parameters():
@@ -116,12 +131,6 @@ class _WarpResNet(torch.nn.Module):
             yield param
         for param in self.encoder.warp4.parameters():
             yield param
-
-    def init_adaptation(self):
-        # Function for resetting the batch norm statistics.
-        for m in self.modules():
-            if hasattr(m, 'reset_running_stats'):
-                m.reset_running_stats()
 
 
 # ============================================================
@@ -148,7 +157,7 @@ class _ConvBlock(torch.nn.Module):
         self.res_conv = torch.nn.Conv2d(in_channels, out_channels, 1, 1, padding=0, bias=False)
         self.bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=track_running_stats)
 
-        self.relu = torch.nn.LeakyReLU(0.1, inplace=True)
+        self.relu = torch.nn.ReLU(inplace=True)
         self.pool = torch.nn.MaxPool2d(2)
 
     def forward(self, x):
@@ -167,6 +176,14 @@ class _ConvBlock(torch.nn.Module):
         x = self.bn(x)
         out = self.pool(self.relu(out + x))
         return out
+    
+    def initialize(self):
+        for module in self.modules():
+            if isinstance(module, torch.nn.Conv2d):
+                torch.nn.init.normal_(module.weight, 0, 0.01)
+            elif isinstance(module, torch.nn.BatchNorm2d):
+                module.weight.data.fill_(1)
+                module.bias.data.zero_()
 
 
 class _WarpBlock(torch.nn.Module):
@@ -181,11 +198,11 @@ class _WarpBlock(torch.nn.Module):
         if batch_norm:
             self.bn_in = torch.nn.BatchNorm2d(in_channels, track_running_stats=track_running_stats)
 
-        self.activation1 = torch.nn.LeakyReLU(inplace=True) if nonlinearity else torch.nn.Identity()
+        self.activation1 = torch.nn.ReLU(inplace=True) if nonlinearity else torch.nn.Identity()
 
         if stacked_conv:
             self.conv2 = torch.nn.Conv2d(in_channels, out_channels, 3, padding=1)
-            self.activation2 = torch.nn.LeakyReLU(inplace=True) if nonlinearity else torch.nn.Identity()
+            self.activation2 = torch.nn.ReLU(inplace=True) if nonlinearity else torch.nn.Identity()
 
         if batch_norm and residual_connection:
             self.bn_out = torch.nn.BatchNorm2d(out_channels, track_running_stats=track_running_stats)
@@ -216,6 +233,15 @@ class _WarpBlock(torch.nn.Module):
             h = self.bn_out(h)
 
         return h
+    
+    def initialize(self):
+        for module in self.modules():
+            if isinstance(module, torch.nn.Conv2d):
+                torch.nn.init.dirac_(module.weight)
+                module.bias.data.zero_()
+            elif isinstance(module, torch.nn.BatchNorm2d):
+                module.weight.data.fill_(1)
+                module.bias.data.zero_()
 
 
 # ============================================================
