@@ -21,9 +21,7 @@ def register_configurations(parser):
     parser.add_argument("--base_bootstrapped_optimizer_name", required=False, type=str)
 
     parser.add_argument("--pretraining_gradient_steps", required=False, type=int)
-    parser.add_argument("--pretraining_optimizer_name", required=False, type=str)
     parser.add_argument("--pretraining_batch_size", required=False, type=int)
-    parser.add_argument("--pretraining_scheduler_name", required=False, type=str)
 
     # Inner and Outer Objectives.
     parser.add_argument("--performance_metric", required=False, type=str)
@@ -70,14 +68,6 @@ def override_configurations(args, args_unknown, required_args, config):
             elif "base_bootstrapped_optimizer" in key:
                 key = key.replace("--base_optimizer_", "")
                 config["base_optimizer_settings"][key] = ast.literal_eval(arg)
-
-            elif "pretraining_optimizer" in key:
-                key = key.replace("--init_optimizer_", "")
-                config["init_optimizer_settings"][key] = ast.literal_eval(arg)
-
-            elif "pretraining_scheduler" in key:
-                key = key.replace("--init_scheduler_", "")
-                config["init_scheduler_settings"][key] = ast.literal_eval(arg)
 
             else:
                 raise ValueError("Don't know how to parse", key, arg)

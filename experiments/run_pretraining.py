@@ -61,7 +61,7 @@ def _run_experiment(dataset, model, config, random_state):
         random.seed(random_state)
 
     # Generating the custom dataset object.
-    training, validation, testing = dataset(device=device, **config)
+    training, validation, _ = dataset(device=device, **config)
 
     # Defining the output results directory and file name.
     res_directory = directory + config["output_path"]
@@ -80,12 +80,13 @@ def _run_experiment(dataset, model, config, random_state):
         num_ways=training.dataset.num_classes
     ).to(device)
 
-    # Creating the base model's *meta* optimizer.
-    pretrain_optimizer = optimizer_archive[config["pretraining_optimizer_name"]](
-        base_model.adapt_parameters(), **config["pretraining_optimizer_settings"])
-
-    pretrain_scheduler = scheduler_archive[config["pretraining_scheduler_name"]](
-        pretrain_optimizer, **config["pretraining_scheduler_settings"])
+    if "conv" in args.model:  # If using a Conv4 base model train using Adam.
+        pretrain_optimizer = torch.optim.Adam(base_model.adapt_parameters(), lr=0.001, weight_decay=0.0005)
+        pretrain_scheduler = torch.optim.lr_scheduler.MultiStepLR(pretrain_optimizer, milestones=[40000, 60000, 80000, 100000], gamma=0.1)
+        
+    elif "resnet" in args.model:  # If using a ResNet base model train using SGD.
+        pretrain_optimizer = torch.optim.SGD(base_model.adapt_parameters(), lr=0.1, momentum=0.9, nesterov=True, weight_decay=0.0005)
+        pretrain_scheduler = torch.optim.lr_scheduler.MultiStepLR(pretrain_optimizer, milestones=[80000, 100000, 110000, 120000], gamma=0.1)
 
     base_model, meta_history, fine_tuning_history  = pretraining(
         base_model, pretrain_optimizer, pretrain_scheduler, training, validation,

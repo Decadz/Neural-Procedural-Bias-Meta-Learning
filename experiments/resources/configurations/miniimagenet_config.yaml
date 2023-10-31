@@ -21,9 +21,9 @@ base_gradient_steps: 5
 base_optimizer_name: "sgd"
 base_optimizer_settings:
   lr: 0.01
-  momentum: 0
-  nesterov: False
-  weight_decay: 0
+  momentum: 0.9
+  nesterov: True
+  weight_decay: 0.0005
 
 base_bootstrapped_gradient_steps: 0
 base_bootstrapped_optimizer_name: "sgd"
@@ -36,17 +36,6 @@ base_bootstrapped_optimizer_settings:
 # Meta Transfer Learning (Initialization).
 pretraining_gradient_steps: 200000
 pretraining_batch_size: 128
-pretraining_optimizer_name: "sgd"
-pretraining_optimizer_settings:
-  lr: 0.1
-  momentum: 0.9
-  nesterov: True
-  weight_decay: 0.0005
-
-pretraining_scheduler_name: "multistep"
-pretraining_scheduler_settings:
-  milestones: [100000, 150000, 175000]
-  gamma: 0.1
 
 # Learning objective and performance metric.
 evaluation_metric: "multierrorrate"

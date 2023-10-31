@@ -128,9 +128,12 @@ def meta_testing(base_model, base_optimizer, dataset, base_gradient_steps, loss_
             # Storing the validation performance history.
             performance_history.append(performance_metric(yp_query, y_query).item())
 
-    # Returning the mean and standard deviation of performance.
+    # Returning the mean and 95% confidence interval of the performance.
     performance = torch.tensor(performance_history)
-    return torch.mean(performance).item(), torch.std(performance).item()
+    mean = torch.mean(performance).item()
+    std = torch.std(performance).item()
+    ci = 1.96 * (std / (len(performance) ** 0.5))
+    return mean, ci
 
 
 class _StateCheckpointer(torch.nn.Module):

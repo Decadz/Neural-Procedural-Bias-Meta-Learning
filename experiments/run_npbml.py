@@ -125,12 +125,12 @@ def _run_experiment(dataset, model, config, random_state):
     export_loss(learned_loss, res_directory, file_name)
 
     # Performing the meta-testing phase.
-    results["training_mean"], results["training_std"] = meta_testing(
+    results["training_mean"], results["training_ci"] = meta_testing(
         base_model, base_optimizer, training, loss_function=learned_loss,
         performance_metric=objective_archive[config["evaluation_metric"]],
         **config
     )
-    results["testing_mean"], results["testing_std"] = meta_testing(
+    results["testing_mean"], results["testing_ci"] = meta_testing(
         base_model, base_optimizer, testing, loss_function=learned_loss,
         performance_metric=objective_archive[config["evaluation_metric"]],
         **config

@@ -9,7 +9,7 @@ import os
 directory = os.path.dirname(os.path.realpath(__file__)) + "/datasets/"
 
 
-def Omniglot(num_ways, num_shots, test_shots, device, **kwargs):
+def Omniglot(num_ways, num_shots, test_shots, device, pretraining=False, **kwargs):
 
     """
     Omniglot dataset which consists of 1,623 different handwritten characters from
@@ -20,6 +20,7 @@ def Omniglot(num_ways, num_shots, test_shots, device, **kwargs):
     :param num_shots: Number of training (support) instances.
     :param test_shots: Number of testing (query) instances.
     :param device: Device to put data on {"cpu", "cuda", ...}
+    :param pretraining: If pretraining use a different set of transforms.
     :return: training, validation and testing datasets.
     """
 
@@ -55,7 +56,7 @@ def Omniglot(num_ways, num_shots, test_shots, device, **kwargs):
     return train, val, test
 
 
-def FC100(num_ways, num_shots, test_shots, device, **kwargs):
+def FC100(num_ways, num_shots, test_shots, device, pretraining=False, **kwargs):
 
     """
     The FC100 dataset (Fewshot-CIFAR100) is a new dataset proposed by Oreshkin et
@@ -66,21 +67,32 @@ def FC100(num_ways, num_shots, test_shots, device, **kwargs):
     :param num_shots: Number of training (support) instances.
     :param test_shots: Number of testing (query) instances.
     :param device: Device to put data on {"cpu", "cuda", ...}
+    :param pretraining: If pretraining use a different set of transforms.
     :return: training, validation and testing datasets.
     """
+    
+    # Defining the training transforms when not performing pretraining (i.e. meta learning).
+    if not pretraining:  
+        training_transforms = torchvision.transforms.Compose([
+            torchvision.transforms.Resize(84),
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize(mean=[0.5071, 0.4867, 0.4408], std=[0.2675, 0.2565, 0.2761])
+        ])
 
-    # Defining the training transforms.
-    training_transforms = torchvision.transforms.Compose([
-        torchvision.transforms.Resize(84),
-        torchvision.transforms.ToTensor(),
-        #torchvision.transforms.Normalize(mean=[0.5071, 0.4867, 0.4408], std=[0.2675, 0.2565, 0.2761])
-    ])
+    else:  # Defining the transforms when performing pretraining.
+        training_transforms = torchvision.transforms.Compose([
+            torchvision.transforms.RandomResizedCrop(84),
+            torchvision.transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4),
+            torchvision.transforms.RandomHorizontalFlip(),
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize(mean=[0.5071, 0.4867, 0.4408], std=[0.2675, 0.2565, 0.2761])
+        ])
 
     # Defining the validation and testing transforms.
     testing_transforms = torchvision.transforms.Compose([
         torchvision.transforms.Resize(84),
         torchvision.transforms.ToTensor(),
-        #torchvision.transforms.Normalize(mean=[0.5071, 0.4867, 0.4408], std=[0.2675, 0.2565, 0.2761])
+        torchvision.transforms.Normalize(mean=[0.5071, 0.4867, 0.4408], std=[0.2675, 0.2565, 0.2761])
     ])
 
     # Generating the training, validation, and testing datasets.
@@ -101,7 +113,7 @@ def FC100(num_ways, num_shots, test_shots, device, **kwargs):
     return train, val, test
 
 
-def MiniImagenet(num_ways, num_shots, test_shots, device, **kwargs):
+def MiniImagenet(num_ways, num_shots, test_shots, device, pretraining=False, **kwargs):
 
     """
     The MiniImageNet dataset is a widely used benchmark dataset in few-shot learning.
@@ -112,21 +124,32 @@ def MiniImagenet(num_ways, num_shots, test_shots, device, **kwargs):
     :param num_shots: Number of training (support) instances.
     :param test_shots: Number of testing (query) instances.
     :param device: Device to put data on {"cpu", "cuda", ...}
+    :param pretraining: If pretraining use a different set of transforms.
     :return: training, validation and testing datasets.
     """
 
-    # Defining the training transforms.
-    training_transforms = torchvision.transforms.Compose([
-        torchvision.transforms.Resize(84),
-        torchvision.transforms.ToTensor(),
-        #torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    ])
+    # Defining the training transforms when not performing pretraining (i.e. meta learning).
+    if not pretraining:  
+        training_transforms = torchvision.transforms.Compose([
+            torchvision.transforms.Resize(84),
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+    
+    else:  # Defining the transforms when performing pretraining.
+        training_transforms = torchvision.transforms.Compose([
+            torchvision.transforms.RandomResizedCrop(84),
+            torchvision.transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4),
+            torchvision.transforms.RandomHorizontalFlip(),
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
 
     # Defining the validation and testing transforms.
     testing_transforms = torchvision.transforms.Compose([
         torchvision.transforms.Resize(84),
         torchvision.transforms.ToTensor(),
-        #torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
     # Generating the training, validation, and testing datasets.
@@ -147,7 +170,7 @@ def MiniImagenet(num_ways, num_shots, test_shots, device, **kwargs):
     return train, val, test
 
 
-def TieredImagenet(num_ways, num_shots, test_shots, device, **kwargs):
+def TieredImagenet(num_ways, num_shots, test_shots, device, pretraining=False, **kwargs):
 
     """
     The tieredImageNet dataset is a larger subset of ILSVRC-12 proposed by Ren et al. (2018) with
@@ -159,21 +182,32 @@ def TieredImagenet(num_ways, num_shots, test_shots, device, **kwargs):
     :param num_shots: Number of training (support) instances.
     :param test_shots: Number of testing (query) instances.
     :param device: Device to put data on {"cpu", "cuda", ...}
+    :param pretraining: If pretraining use a different set of transforms.
     :return: training, validation and testing datasets.
     """
 
-    # Defining the training transforms.
-    training_transforms = torchvision.transforms.Compose([
-        torchvision.transforms.Resize(84),
-        torchvision.transforms.ToTensor(),
-        #torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    ])
+    # Defining the training transforms when not performing pretraining (i.e. meta learning).
+    if not pretraining:  
+        training_transforms = torchvision.transforms.Compose([
+            torchvision.transforms.Resize(84),
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+    
+    else:  # Defining the transforms when performing pretraining.
+        training_transforms = torchvision.transforms.Compose([
+            torchvision.transforms.RandomResizedCrop(84),
+            torchvision.transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4),
+            torchvision.transforms.RandomHorizontalFlip(),
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
 
     # Defining the validation and testing transforms.
     testing_transforms = torchvision.transforms.Compose([
         torchvision.transforms.Resize(84),
         torchvision.transforms.ToTensor(),
-        #torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
     # Generating the training, validation, and testing datasets.

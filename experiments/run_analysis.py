@@ -54,8 +54,8 @@ def plot_learning_curve():
     paths = [
         #"results/miniimagenet/warpgrad-miniimagenet-linearwarpconv-5way-1shot",
 
-        "results/miniimagenet/warpgrad-miniimagenet-warpconv-5way-1shot-12.json",
-        "results/miniimagenet/warpgrad-miniimagenet-warpconv-5way-1shot-13.json"
+        "results/miniimagenet/maml-miniimagenet-conv-5way-1shot-50.json",
+        "results/miniimagenet/maml-miniimagenet-conv-5way-1shot-53.json",
     ]
 
     # Setting the plot settings.
@@ -65,7 +65,7 @@ def plot_learning_curve():
     plt.rcParams["figure.figsize"] = (4.25, 5)  # (8, 4.5)
 
     # Name of the methods and their respective plotting colors.
-    method_names = ["CA-0.01", "CA-0.05"]
+    method_names = ["CA-0.005",  "CA-0.01"]
 
     # Iterating over the different methods.
     for path, method in zip(paths, method_names):

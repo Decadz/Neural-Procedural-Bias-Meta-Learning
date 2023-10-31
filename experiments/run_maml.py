@@ -66,28 +66,6 @@ def _run_experiment(dataset, model, config, random_state):
 
     # Creating the base model.
     base_model = model(**config).to(device)
-    
-    """
-    # Defining the output results directory and file name.
-    res_directory = directory + config["output_path"]
-    file_name = args.dataset + "-" + args.model + "-" + \
-                str(config["num_ways"]) + "way-" + str(config["num_shots"]) + "shot"
-
-    # Loading the base model from the .pth file
-    base_model_loaded = torch.load(res_directory + "models/" + file_name + ".pth",
-                                   map_location=torch.device('cpu'))
-
-    # If the state dictionary was saved load into the base model.
-    if isinstance(base_model_loaded, dict):
-        print("loaded state dictionary")
-        base_model = model(**config).to(device)
-        base_model.load_state_dict(base_model_loaded)
-
-    # Else the whole model was saved, so overload base model object.
-    else:
-        print("loaded full model")
-        base_model = base_model_loaded
-    """
 
     # Creating the base model's *meta* optimizer.
     meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
@@ -134,13 +112,13 @@ def _run_experiment(dataset, model, config, random_state):
     export_model(base_model, res_directory, file_name)
 
     # Performing the meta-testing phase.
-    results["training_mean"], results["training_std"] = meta_testing(
+    results["training_mean"], results["training_ci"] = meta_testing(
         base_model, base_optimizer, training,
         loss_function=objective_archive[config["task_loss_function"]],
         performance_metric=objective_archive[config["evaluation_metric"]],
         **config
     )
-    results["testing_mean"], results["testing_std"] = meta_testing(
+    results["testing_mean"], results["testing_ci"] = meta_testing(
         base_model, base_optimizer, testing,
         loss_function=objective_archive[config["task_loss_function"]],
         performance_metric=objective_archive[config["evaluation_metric"]],

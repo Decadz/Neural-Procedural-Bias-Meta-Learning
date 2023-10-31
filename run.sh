@@ -93,17 +93,17 @@ python experiments/run_pretraining.py --dataset omniglot --model conv --num_ways
 python experiments/run_pretraining.py --dataset omniglot --model conv --num_ways 20 --num_shots 1 --seeds 0 --device cuda:0
 python experiments/run_pretraining.py --dataset omniglot --model conv --num_ways 20 --num_shots 5 --seeds 0 --device cuda:0
 
-python experiments/run_pretraining.py --dataset miniimagenet --model conv --num_ways 5 --num_shots 1 --meta_batch_size 4 --seeds 0 --device cuda:0
-python experiments/run_pretraining.py --dataset miniimagenet --model conv --num_ways 5 --num_shots 5 --meta_batch_size 2 --seeds 0 --device cuda:0
-python experiments/run_pretraining.py --dataset miniimagenet --model resnet --num_ways 5 --num_shots 1 --meta_batch_size 4 --seeds 0 --device cuda:0
-python experiments/run_pretraining.py --dataset miniimagenet --model resnet --num_ways 5 --num_shots 5 --meta_batch_size 2 --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset miniimagenet --model conv --num_ways 5 --num_shots 1 --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset miniimagenet --model conv --num_ways 5 --num_shots 5 --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset miniimagenet --model resnet --num_ways 5 --num_shots 1 --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset miniimagenet --model resnet --num_ways 5 --num_shots 5 --seeds 0 --device cuda:0
 
-python experiments/run_pretraining.py --dataset fc100 --model conv --num_ways 5 --num_shots 1 --meta_batch_size 4 --seeds 0  --device cuda:0
-python experiments/run_pretraining.py --dataset fc100 --model conv --num_ways 5 --num_shots 5 --meta_batch_size 2 --seeds 0 --device cuda:0
-python experiments/run_pretraining.py --dataset fc100 --model resnet --num_ways 5 --num_shots 1 --meta_batch_size 4 --seeds 0  --device cuda:0
-python experiments/run_pretraining.py --dataset fc100 --model resnet --num_ways 5 --num_shots 5 --meta_batch_size 2 --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset fc100 --model conv --num_ways 5 --num_shots 1 --seeds 0  --device cuda:0
+python experiments/run_pretraining.py --dataset fc100 --model conv --num_ways 5 --num_shots 5 --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset fc100 --model resnet --num_ways 5 --num_shots 1 --seeds 0  --device cuda:0
+python experiments/run_pretraining.py --dataset fc100 --model resnet --num_ways 5 --num_shots 5 --seeds 0 --device cuda:0
 
-python experiments/run_pretraining.py --dataset tieredimagenet --model conv --num_ways 5 --num_shots 1 --meta_batch_size 4 --seeds 0 --device cuda:0
-python experiments/run_pretraining.py --dataset tieredimagenet --model conv --num_ways 5 --num_shots 5 --meta_batch_size 2 --seeds 0 --device cuda:0
-python experiments/run_pretraining.py --dataset tieredimagenet --model resnet --num_ways 5 --num_shots 1 --meta_batch_size 4 --seeds 0 --device cuda:0
-python experiments/run_pretraining.py --dataset tieredimagenet --model resnet --num_ways 5 --num_shots 5 --meta_batch_size 2 --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset tieredimagenet --model conv --num_ways 5 --num_shots 1 --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset tieredimagenet --model conv --num_ways 5 --num_shots 5 --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset tieredimagenet --model resnet --num_ways 5 --num_shots 1 --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset tieredimagenet --model resnet --num_ways 5 --num_shots 5 --seeds 0 --device cuda:0
