@@ -65,8 +65,7 @@ def _run_experiment(dataset, model, config, random_state):
 
     # Defining the output results directory and file name.
     res_directory = directory + config["output_path"]
-    file_name = "pretraining-" + args.dataset + "-" + args.model + "-" + \
-                str(config["num_ways"]) + "way-" + str(config["num_shots"]) + "shot-" + str(random_state)
+    file_name = "pretraining-" + args.dataset + "-" + args.model + "-" + str(config["num_ways"]) + "way"
 
     print("pretraining", args.dataset, args.model, "seed", str(random_state), "started")
 
@@ -88,7 +87,7 @@ def _run_experiment(dataset, model, config, random_state):
         pretrain_optimizer = torch.optim.SGD(base_model.adapt_parameters(), lr=0.1, momentum=0.9, nesterov=True, weight_decay=0.0005)
         pretrain_scheduler = torch.optim.lr_scheduler.MultiStepLR(pretrain_optimizer, milestones=[80000, 100000, 110000, 120000], gamma=0.1)
 
-    base_model, meta_history, fine_tuning_history  = pretrain(
+    base_model, meta_history, fine_tuning_history = pretrain(
         base_model, pretrain_optimizer, pretrain_scheduler, training, validation,
         gradient_steps=config["pretraining_gradient_steps"],
         batch_size=config["pretraining_batch_size"],

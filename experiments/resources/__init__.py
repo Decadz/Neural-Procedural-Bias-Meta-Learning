@@ -1,4 +1,3 @@
-
 # Importing the base-networks.
 from experiments.resources.models.conv import Conv, WideConv
 from experiments.resources.models.conv import LinearWarpConv, LinearWarpWideConv
@@ -52,8 +51,9 @@ def kl_divergence(p_target, q_target):
 dataset_archive = {
     "omniglot": {"data": Omniglot, "config": "experiments/resources/configurations/omniglot_config.yaml"},
     "fc100": {"data": FC100, "config": "experiments/resources/configurations/fc100_config.yaml"},
+    "cifarfs": {"data": FC100, "config": "experiments/resources/configurations/cifarfs_config.yaml"},
     "miniimagenet": {"data": MiniImagenet, "config": "experiments/resources/configurations/miniimagenet_config.yaml"},
-    "tieredimagenet": {"data": TieredImagenet, "config": "experiments/resources/configurations/tieredimagenet.yaml"}
+    "tieredimagenet": {"data": TieredImagenet, "config": "experiments/resources/configurations/tieredimagenet_config.yaml"}
 }
 
 

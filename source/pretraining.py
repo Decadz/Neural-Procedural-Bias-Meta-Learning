@@ -70,8 +70,7 @@ def pretrain(model, optimizer, scheduler, training, validation, num_ways, num_sh
         fine_tuning_history.append(fine_tuning_performance)
 
         # Updating the progress bar.
-        training_progress.set_description(
-            "Performance " + str(round(fine_tuning_performance, 4)))
+        training_progress.set_description("Performance " + str(round(fine_tuning_performance, 4)))
 
     # Returning the training history and the best performing base model.
     return checkpointer.best_model, checkpointer.performance_history, fine_tuning_history

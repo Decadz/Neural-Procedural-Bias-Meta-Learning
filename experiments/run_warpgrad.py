@@ -69,12 +69,11 @@ def _run_experiment(dataset, model, config, random_state):
     if config["pretrained_backbone"]:
 
         # The directory and file name for the loading the pretrained base model.
-        res_directory = directory + config["output_path"]
-        file_name = args.dataset + "-" + args.model + "-" + config["num_ways"] + "way"
+        res_directory = directory + config["output_path"] + "models/"
+        file_name = args.dataset + "-" + args.model + "-" + str(config["num_ways"]) + "way.pth"
 
         # Loading the base model from the .pth file
-        base_model_loaded = torch.load(res_directory + "models/" + file_name + ".pth",
-                                    map_location=torch.device('cpu'))
+        base_model_loaded = torch.load(res_directory + file_name, map_location=torch.device('cpu'))
 
         # Creating a base model instances and loading in the state dictionary.
         base_model = model(**config).to(device)
