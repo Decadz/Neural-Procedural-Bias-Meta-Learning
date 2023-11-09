@@ -70,7 +70,7 @@ def pretrain(model, optimizer, scheduler, training, validation, num_ways, num_sh
         fine_tuning_history.append(fine_tuning_performance)
 
         # Updating the progress bar.
-        training_progress.set_description("Performance " + str(round(fine_tuning_performance, 4)))
+        training_progress.set_description("Performance " + str(round(performance, 4)))
 
     # Returning the training history and the best performing base model.
     return checkpointer.best_model, checkpointer.performance_history, fine_tuning_history
@@ -103,7 +103,7 @@ class _StateCheckpointer(torch.nn.Module):
     def checkpoint(self, base_model, step):
 
         # If step is not in the desired frequency the skip checkpointing.
-        if step % self.frequency == 0 and step > 100000:
+        if step % self.frequency == 0:
 
             # List for keeping track of the learning history.
             performance_history = []
@@ -125,7 +125,7 @@ class _StateCheckpointer(torch.nn.Module):
                 prototypes = prototypes.unsqueeze(0).expand(query.shape[0], prototypes.shape[0], -1)
                 logits = - ((query - prototypes)**2).sum(dim=2)
 
-                # Computing each query instances cosine simlilarity to each of the prototypes.
+                # Computing each query instances cosine similarity to each of the prototypes.
                 # logits = torch.mm(query, torch.nn.functional.normalize(prototypes, p=2, dim=-1).t())
 
                 # Computing the performance with the given performance metric.

@@ -12,21 +12,12 @@ class _Conv(torch.nn.Module):
             ("block2", _ConvBlock(num_filters, num_filters, track_running_stats=track_running_stats)),
             ("block3", _ConvBlock(num_filters, num_filters, track_running_stats=track_running_stats)),
             ("block4", _ConvBlock(num_filters, num_filters, track_running_stats=track_running_stats)),
+            ("adaPool", torch.nn.AdaptiveAvgPool2d(1)),
             ("flatten", torch.nn.Flatten())
         ]))
 
-        # Determining the number of inputs to the head.
-        if input_channels == 3 and num_filters == 32:
-            linear_in = 800
-        elif input_channels == 3 and num_filters == 64:
-            linear_in = 1600
-        elif input_channels == 1 and num_filters == 32:
-            linear_in = 32
-        elif input_channels == 1 and num_filters == 64:
-            linear_in = 64
-
         # Creating and initializing the head of the network.
-        self.output_layer = torch.nn.Linear(linear_in, num_ways)
+        self.output_layer = torch.nn.Linear(num_filters, num_ways)
 
         # Model configuration hyper-parameters.
         self.input_channels = input_channels
@@ -63,7 +54,6 @@ class _Conv(torch.nn.Module):
         return self.parameters()
     
 
-
 class _WarpConv4(torch.nn.Module):
 
     def __init__(self, nonlinear=False, input_channels=3, num_filters=32,
@@ -84,21 +74,12 @@ class _WarpConv4(torch.nn.Module):
             ("adapt4", _ConvBlock(num_filters, num_filters, track_running_stats=track_running_stats)),
             ("warp4", _WarpBlock(num_filters, num_filters, nonlinearity=nonlinear,
                                  batch_norm=nonlinear, track_running_stats=track_running_stats)),
+            ("adaPool", torch.nn.AdaptiveAvgPool2d(1)),
             ("flatten", torch.nn.Flatten())
         ]))
 
-        # Determining the number of inputs to the head.
-        if input_channels == 3 and num_filters == 32:
-            linear_in = 800
-        elif input_channels == 3 and num_filters == 64:
-            linear_in = 1600
-        elif input_channels == 1 and num_filters == 32:
-            linear_in = 32
-        elif input_channels == 1 and num_filters == 64:
-            linear_in = 64
-
         # Creating and initializing the head of the network.
-        self.output_layer = torch.nn.Linear(linear_in, num_ways)
+        self.output_layer = torch.nn.Linear(num_filters, num_ways)
 
         # Model configuration hyper-parameters.
         self.track_running_stats = track_running_stats

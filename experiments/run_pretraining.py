@@ -61,7 +61,7 @@ def _run_experiment(dataset, model, config, random_state):
         random.seed(random_state)
 
     # Generating the custom dataset object.
-    training, validation, _ = dataset(device=device, **config)
+    training, validation, _ = dataset(pretraining=True, device=device, **config)
 
     # Defining the output results directory and file name.
     res_directory = directory + config["output_path"]

@@ -55,9 +55,7 @@ def plot_learning_curve():
 def plot_pretraining_learning_curve():
 
     paths = [
-        "results/miniimagenet/pretrained-maml-miniimagenet-conv-5way-1shot-0.json",
-        "results/miniimagenet/pretrained-maml-miniimagenet-conv-5way-1shot-1.json",
-        "results/miniimagenet/pretraining-maml-miniimagenet-conv-5way-1shot-3.json",
+        "results/miniimagenet/pretraining-miniimagenet-resnet-5way-1shot-0.json",
     ]
 
     # Setting the plot settings.
@@ -76,12 +74,12 @@ def plot_pretraining_learning_curve():
         results = json.load(open(path))
 
         # Extracting the learning curve from the json file.
-        loss = results["meta_training_history"]
+        loss = results["meta_history"]  # meta_history, fine_tuning_history
 
         # Computing the average learning curve.
         plt.plot(np.linspace(0, len(loss), len(loss)), loss, linewidth=3, label=method)
 
-        print(method, results["testing_mean"])
+        #print(method, results["testing_mean"])
 
     plt.ylabel("Error")
     plt.grid(alpha=0.5)
