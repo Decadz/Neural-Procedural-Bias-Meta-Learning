@@ -44,6 +44,7 @@ matching_loss_function: "mseloss"
 
 # Experiment Settings
 output_path: results/tieredimagenet/
+pretrained_backbone: False
 track_running_stats: False
 input_channels: 3
 verbose: 2

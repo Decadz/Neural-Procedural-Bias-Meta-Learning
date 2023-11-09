@@ -2,6 +2,8 @@
 python3 experiments/run_maml.py --dataset miniimagenet --model conv --num_ways 5 --num_shots 1 --meta_gradient_steps 1000 --seeds 0 --fast True 
 python3 experiments/run_warpgrad.py --dataset miniimagenet --model linearwarpconv --num_ways 5 --num_shots 1 --meta_gradient_steps 1000 --seeds 0 --fast True 
 python3 experiments/run_warpgrad.py --dataset miniimagenet --model warpconv --num_ways 5 --num_shots 1 --meta_gradient_steps 1000 --seeds 0 --fast True 
+python3 experiments/run_maml_pretraining.py --dataset miniimagenet --model conv --num_ways 5 --num_shots 1 --seeds 0 --fast True
+python3 experiments/run_testing.py --method maml --dataset miniimagenet --model conv --num_ways 5 --num_shots 1 --seeds 0 --fast True
 
 # MAML Few-Shot Learning Experiments.
 python experiments/run_maml.py --dataset omniglot --model conv --num_ways 5 --num_shots 1 --seeds 0 --device cuda:0
@@ -88,22 +90,32 @@ python experiments/run_npbml.py --dataset tieredimagenet --model warpresnet --nu
 python experiments/run_npbml.py --dataset tieredimagenet --model warpresnet --num_ways 5 --num_shots 5 --meta_batch_size 2 --base_bootstrapped_gradient_steps 5 --seeds 0 --device cuda:0
 
 # Pretrained Backbone Experiments.
-python experiments/run_pretraining.py --dataset omniglot --model conv --num_ways 5 --num_shots 1 --seeds 0 --device cuda:0
-python experiments/run_pretraining.py --dataset omniglot --model conv --num_ways 5 --num_shots 5 --seeds 0 --device cuda:0
-python experiments/run_pretraining.py --dataset omniglot --model conv --num_ways 20 --num_shots 1 --seeds 0 --device cuda:0
-python experiments/run_pretraining.py --dataset omniglot --model conv --num_ways 20 --num_shots 5 --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset omniglot --model conv --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset miniimagenet --model conv --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset fc100 --model conv --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset tieredimagenet --model conv --seeds 0 --device cuda:0
 
-python experiments/run_pretraining.py --dataset miniimagenet --model conv --num_ways 5 --num_shots 1 --seeds 0 --device cuda:0
-python experiments/run_pretraining.py --dataset miniimagenet --model conv --num_ways 5 --num_shots 5 --seeds 0 --device cuda:0
-python experiments/run_pretraining.py --dataset miniimagenet --model resnet --num_ways 5 --num_shots 1 --seeds 0 --device cuda:0
-python experiments/run_pretraining.py --dataset miniimagenet --model resnet --num_ways 5 --num_shots 5 --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset omniglot --model linearwarpconv --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset miniimagenet --model linearwarpconv --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset fc100 --model linearwarpconv --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset tieredimagenet --model linearwarpconv --seeds 0 --device cuda:0
 
-python experiments/run_pretraining.py --dataset fc100 --model conv --num_ways 5 --num_shots 1 --seeds 0  --device cuda:0
-python experiments/run_pretraining.py --dataset fc100 --model conv --num_ways 5 --num_shots 5 --seeds 0 --device cuda:0
-python experiments/run_pretraining.py --dataset fc100 --model resnet --num_ways 5 --num_shots 1 --seeds 0  --device cuda:0
-python experiments/run_pretraining.py --dataset fc100 --model resnet --num_ways 5 --num_shots 5 --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset omniglot --model warpconv --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset miniimagenet --model warpconv --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset fc100 --model warpconv --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset tieredimagenet --model warpconv --seeds 0 --device cuda:0
 
-python experiments/run_pretraining.py --dataset tieredimagenet --model conv --num_ways 5 --num_shots 1 --seeds 0 --device cuda:0
-python experiments/run_pretraining.py --dataset tieredimagenet --model conv --num_ways 5 --num_shots 5 --seeds 0 --device cuda:0
-python experiments/run_pretraining.py --dataset tieredimagenet --model resnet --num_ways 5 --num_shots 1 --seeds 0 --device cuda:0
-python experiments/run_pretraining.py --dataset tieredimagenet --model resnet --num_ways 5 --num_shots 5 --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset omniglot --model resnet --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset miniimagenet --model resnet --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset fc100 --model resnet --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset tieredimagenet --model resnet --seeds 0 --device cuda:0
+
+python experiments/run_pretraining.py --dataset omniglot --model linearwarpresnet --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset miniimagenet --model linearwarpresnet --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset fc100 --model linearwarpresnet --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset tieredimagenet --model linearwarpresnet --seeds 0 --device cuda:0
+
+python experiments/run_pretraining.py --dataset omniglot --model warpresnet --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset miniimagenet --model warpresnet --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset fc100 --model warpresnet --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset tieredimagenet --model warpresnet --seeds 0 --device cuda:0

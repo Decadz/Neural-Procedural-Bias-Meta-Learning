@@ -19,7 +19,7 @@ from source.parameterization import warp_state_dict
 
 from source.meta_learning import meta_training
 from source.meta_learning import meta_testing
-from source.base_learning import pretraining
+from source.pretraining import pretrain
 
 from source.loss_network import LearnedLossNetwork
 from source.loss_network import LossNetworkV1

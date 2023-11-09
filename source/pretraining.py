@@ -3,7 +3,7 @@ import tqdm
 import copy
 
 
-def pretraining(model, optimizer, scheduler, training, validation, num_ways, num_shots, gradient_steps,
+def pretrain(model, optimizer, scheduler, training, validation, num_ways, num_shots, gradient_steps,
                 batch_size, loss_function, performance_metric, verbose, device, **kwargs):
 
     """
@@ -64,11 +64,14 @@ def pretraining(model, optimizer, scheduler, training, validation, num_ways, num
 
         # Checkpointing the model and returning the validation performance.
         performance = checkpointer.checkpoint(model, step)
-        training_progress.set_description("Performance " + str(round(performance, 4)))
 
         # Recording the fine-tuning accuracy.
-        performance = performance_metric(y_pred, y).item()
-        fine_tuning_history.append(performance)
+        fine_tuning_performance = performance_metric(y_pred, y).item()
+        fine_tuning_history.append(fine_tuning_performance)
+
+        # Updating the progress bar.
+        training_progress.set_description(
+            "Performance " + str(round(fine_tuning_performance, 4)))
 
     # Returning the training history and the best performing base model.
     return checkpointer.best_model, checkpointer.performance_history, fine_tuning_history
@@ -101,28 +104,36 @@ class _StateCheckpointer(torch.nn.Module):
     def checkpoint(self, base_model, step):
 
         # If step is not in the desired frequency the skip checkpointing.
-        if step % self.frequency == 0:
+        if step % self.frequency == 0 and step > 100000:
 
-            # Sampling a batch of support and query instances.
-            X_support, y_support, X_query, y_query = next(self.dataset)
+            # List for keeping track of the learning history.
+            performance_history = []
 
-            # Computing the support and query embeddings.
-            support = base_model.encoder(X_support)
-            query = base_model.encoder(X_query)
+            for _ in range(self.test_tasks):
 
-            # Computing the prototypes for each of the ways (classes).
-            prototypes = support.reshape(self.num_shots, self.num_ways, -1).mean(dim=0)
+                # Sampling a batch of support and query instances.
+                X_support, y_support, X_query, y_query = next(self.dataset)
 
-            # Computing each query instances euclidean distance to each of the prototypes.
-            query = query.unsqueeze(1).expand(query.shape[0], prototypes.shape[0], -1)
-            prototypes = prototypes.unsqueeze(0).expand(query.shape[0], prototypes.shape[0], -1)
-            logits = - ((query - prototypes)**2).sum(dim=2)
+                # Computing the support and query embeddings.
+                support = base_model.encoder(X_support)
+                query = base_model.encoder(X_query)
 
-            # Computing each query instances cosine simlilarity to each of the prototypes.
-            # logits = torch.mm(query, torch.nn.functional.normalize(prototypes, p=2, dim=-1).t())
+                # Computing the prototypes for each of the ways (classes).
+                prototypes = support.reshape(self.num_shots, self.num_ways, -1).mean(dim=0)
 
-            # Computing the performance with the given performance metric.
-            performance = self.performance_metric(logits, y_query).item()
+                # Computing each query instances euclidean distance to each of the prototypes.
+                query = query.unsqueeze(1).expand(query.shape[0], prototypes.shape[0], -1)
+                prototypes = prototypes.unsqueeze(0).expand(query.shape[0], prototypes.shape[0], -1)
+                logits = - ((query - prototypes)**2).sum(dim=2)
+
+                # Computing each query instances cosine simlilarity to each of the prototypes.
+                # logits = torch.mm(query, torch.nn.functional.normalize(prototypes, p=2, dim=-1).t())
+
+                # Computing the performance with the given performance metric.
+                performance_history.append(self.performance_metric(logits, y_query).item())
+
+            # Computing the average performance on the validation set.
+            performance = torch.mean(torch.tensor(performance_history)).item()
 
             # If this is the best model so far then cache the model.
             if self.best_model is None or performance < self.best_performance:

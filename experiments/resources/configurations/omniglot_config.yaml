@@ -44,6 +44,7 @@ matching_loss_function: "mseloss"
 
 # Experiment Settings
 output_path: results/omniglot/
+pretrained_backbone: False
 track_running_stats: False
 input_channels: 1
 verbose: 2

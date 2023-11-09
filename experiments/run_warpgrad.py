@@ -65,8 +65,23 @@ def _run_experiment(dataset, model, config, random_state):
     # Generating the custom dataset object.
     training, validation, testing = dataset(device=device, **config)
 
-    # Creating the base model.
-    base_model = model(**config).to(device)
+    # If we are using a pretrained backbone. 
+    if config["pretrained_backbone"]:
+
+        # The directory and file name for the loading the pretrained base model.
+        res_directory = directory + config["output_path"]
+        file_name = args.dataset + "-" + args.model + "-" + config["num_ways"] + "way"
+
+        # Loading the base model from the .pth file
+        base_model_loaded = torch.load(res_directory + "models/" + file_name + ".pth",
+                                    map_location=torch.device('cpu'))
+
+        # Creating a base model instances and loading in the state dictionary.
+        base_model = model(**config).to(device)
+        base_model.load_state_dict(base_model_loaded)
+    
+    else:  # If we are using an untrained backbone.
+        base_model = model(**config).to(device)
 
     # Creating the base model's *meta* optimizer.
     meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
