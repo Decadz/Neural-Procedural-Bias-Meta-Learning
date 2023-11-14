@@ -91,7 +91,8 @@ def meta_training(base_model, meta_optimizer, base_optimizer, base_bootstrapped_
 
         # Checkpointing the model and returning the validation performance.
         performance = checkpointer.checkpoint(base_model, base_loss_function, step)
-        training_progress.set_description("Performance " + str(round(performance, 4)))
+        training_progress.set_description("Best: " + str(round(checkpointer.best_performance, 4)) +
+                                          " | Current: " + str(round(performance, 4)) + " | Progress")
 
     # Returning the training history and the best base model and loss function.
     return checkpointer.performance_history, checkpointer.best_model, checkpointer.best_loss_function

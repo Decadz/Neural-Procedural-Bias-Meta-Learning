@@ -8,6 +8,7 @@ from experiments.resources.models.resnet import WarpResNet, WarpWideResNet
 
 # Importing the meta-learning datasets.
 from experiments.resources.datasets import Omniglot
+from experiments.resources.datasets import CIFARFS
 from experiments.resources.datasets import FC100
 from experiments.resources.datasets import MiniImagenet
 from experiments.resources.datasets import TieredImagenet
@@ -51,7 +52,7 @@ def kl_divergence(p_target, q_target):
 dataset_archive = {
     "omniglot": {"data": Omniglot, "config": "experiments/resources/configurations/omniglot_config.yaml"},
     "fc100": {"data": FC100, "config": "experiments/resources/configurations/fc100_config.yaml"},
-    "cifarfs": {"data": FC100, "config": "experiments/resources/configurations/cifarfs_config.yaml"},
+    "cifarfs": {"data": CIFARFS, "config": "experiments/resources/configurations/cifarfs_config.yaml"},
     "miniimagenet": {"data": MiniImagenet, "config": "experiments/resources/configurations/miniimagenet_config.yaml"},
     "tieredimagenet": {"data": TieredImagenet, "config": "experiments/resources/configurations/tieredimagenet_config.yaml"}
 }

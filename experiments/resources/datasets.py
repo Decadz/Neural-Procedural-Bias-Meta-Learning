@@ -56,11 +56,66 @@ def Omniglot(num_ways, num_shots, test_shots, device, pretraining=False, **kwarg
     return train, val, test
 
 
+def CIFARFS(num_ways, num_shots, test_shots, device, pretraining=False, **kwargs):
+
+    """
+    The CIFAR-FS dataset uses a similar sampling procedure to miniImageNet
+    (Ravi & Larochelle, 2017), CIFAR-FS is derived by randomly sampling 100
+    classes from the 100 base classes in CIFAR100.
+
+    :param num_ways: Number of classes.
+    :param num_shots: Number of training (support) instances.
+    :param test_shots: Number of testing (query) instances.
+    :param device: Device to put data on {"cpu", "cuda", ...}
+    :param pretraining: If pretraining use a different set of transforms.
+    :return: training, validation and testing datasets.
+    """
+
+    # Defining the training transforms when not performing pretraining (i.e. meta learning).
+    if not pretraining:
+        training_transforms = torchvision.transforms.Compose([
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize(mean=[0.5071, 0.4867, 0.4408], std=[0.2675, 0.2565, 0.2761])
+        ])
+
+    else:  # Defining the transforms when performing pretraining.
+        training_transforms = torchvision.transforms.Compose([
+            torchvision.transforms.RandomResizedCrop(32),
+            torchvision.transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4),
+            torchvision.transforms.RandomHorizontalFlip(),
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize(mean=[0.5071, 0.4867, 0.4408], std=[0.2675, 0.2565, 0.2761])
+        ])
+
+    # Defining the validation and testing transforms.
+    testing_transforms = torchvision.transforms.Compose([
+        torchvision.transforms.ToTensor(),
+        torchvision.transforms.Normalize(mean=[0.5071, 0.4867, 0.4408], std=[0.2675, 0.2565, 0.2761])
+    ])
+
+    # Generating the training, validation, and testing datasets.
+    training = _Dataset("cifarfs", set_name="train", transforms=training_transforms)
+    validation = _Dataset("cifarfs", set_name="val", transforms=testing_transforms)
+    testing = _Dataset("cifarfs", set_name="test", transforms=testing_transforms)
+
+    # Generating the meta-learning task samplers.
+    training_sampler = _TaskSampler(training, num_ways, num_shots, test_shots)
+    validation_sampler = _TaskSampler(validation, num_ways, num_shots, test_shots)
+    testing_sampler = _TaskSampler(testing, num_ways, num_shots, test_shots)
+
+    # Generating a custom dataloaders which process batches.
+    train = _DataLoader(training, training_sampler, device, random_rotation=False)
+    val = _DataLoader(validation, validation_sampler, device, random_rotation=False)
+    test = _DataLoader(testing, testing_sampler, device, random_rotation=False)
+
+    return train, val, test
+
+
 def FC100(num_ways, num_shots, test_shots, device, pretraining=False, **kwargs):
 
     """
     The FC100 dataset (Fewshot-CIFAR100) is a new dataset proposed by Oreshkin et
-    al. (2018)based on CIFAR-100 for few-shot learning. There are 60, 20, 20 classes
+    al. (2018) based on CIFAR-100 for few-shot learning. There are 60, 20, 20 classes
     in the training, validation, and testing sets, containing 600 images each.
 
     :param num_ways: Number of classes.
@@ -74,14 +129,13 @@ def FC100(num_ways, num_shots, test_shots, device, pretraining=False, **kwargs):
     # Defining the training transforms when not performing pretraining (i.e. meta learning).
     if not pretraining:  
         training_transforms = torchvision.transforms.Compose([
-            torchvision.transforms.Resize(84),
             torchvision.transforms.ToTensor(),
             torchvision.transforms.Normalize(mean=[0.5071, 0.4867, 0.4408], std=[0.2675, 0.2565, 0.2761])
         ])
 
     else:  # Defining the transforms when performing pretraining.
         training_transforms = torchvision.transforms.Compose([
-            torchvision.transforms.RandomResizedCrop(84),
+            torchvision.transforms.RandomResizedCrop(32),
             torchvision.transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4),
             torchvision.transforms.RandomHorizontalFlip(),
             torchvision.transforms.ToTensor(),
@@ -90,7 +144,6 @@ def FC100(num_ways, num_shots, test_shots, device, pretraining=False, **kwargs):
 
     # Defining the validation and testing transforms.
     testing_transforms = torchvision.transforms.Compose([
-        torchvision.transforms.Resize(84),
         torchvision.transforms.ToTensor(),
         torchvision.transforms.Normalize(mean=[0.5071, 0.4867, 0.4408], std=[0.2675, 0.2565, 0.2761])
     ])

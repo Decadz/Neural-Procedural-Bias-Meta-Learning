@@ -17,10 +17,12 @@ def main():
 def plot_learning_curve():
 
     paths = [
+        "results/miniimagenet/maml-miniimagenet-conv-5way-1shot-0.json",
         "results/miniimagenet/maml-miniimagenet-linearwarpconv-5way-1shot-0.json",
-        "results/miniimagenet/maml-miniimagenet-linearwarpconv-5way-1shot-1.json",
-        "results/miniimagenet/maml-miniimagenet-linearwarpconv-5way-5shot-0.json",
-        "results/miniimagenet/maml-miniimagenet-linearwarpconv-5way-5shot-1.json",
+        "results/miniimagenet/npbml-miniimagenet-linearwarpconv-5way-1shot-0.json",
+        "results/miniimagenet/npbml-miniimagenet-linearwarpconv-5way-1shot-1.json",
+        "results/miniimagenet/npbml-miniimagenet-linearwarpconv-5way-1shot-2.json",
+        "results/miniimagenet/npbml-miniimagenet-linearwarpconv-5way-1shot-5.json"
     ]
 
     # Setting the plot settings.
@@ -30,7 +32,7 @@ def plot_learning_curve():
     plt.rcParams["figure.figsize"] = (4.25, 5)  # (8, 4.5)
 
     # Name of the methods and their respective plotting colors.
-    method_names = ["no pretraining", "no pretraining BMG", "pretraining", "pretraining BMG"]
+    method_names = ["MAML conv", "MAML linearwarpconv", "NPBML 0", "NPBML 1", "NPBML 2", "NPBML 5"]
 
     # Iterating over the different methods.
     for path, method in zip(paths, method_names):
