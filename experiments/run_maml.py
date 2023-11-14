@@ -112,9 +112,9 @@ def _run_experiment(dataset, model, config, random_state):
     meta_training_history, base_model, _ = meta_training(
         base_model, meta_optimizer, base_optimizer, base_bootstrapped_optimizer,
         meta_scheduler, training, validation,
-        meta_loss_function=objective_archive[config["task_loss_function"]],
-        matching_function=objective_archive[config["matching_loss_function"]],
-        base_loss_function=objective_archive[config["task_loss_function"]],
+        matching_loss_function=objective_archive[config["matching_loss_fn"]],
+        meta_loss_function=objective_archive[config["meta_loss_fn"]],
+        base_loss_function=objective_archive[config["base_loss_fn"]],
         performance_metric=objective_archive[config["evaluation_metric"]],
         **config
     )
@@ -128,13 +128,13 @@ def _run_experiment(dataset, model, config, random_state):
     # Performing the meta-testing phase.
     results["training_mean"], results["training_ci"] = meta_testing(
         base_model, base_optimizer, training,
-        loss_function=objective_archive[config["task_loss_function"]],
+        loss_function=objective_archive[config["base_loss_fn"]],
         performance_metric=objective_archive[config["evaluation_metric"]],
         **config
     )
     results["testing_mean"], results["testing_ci"] = meta_testing(
         base_model, base_optimizer, testing,
-        loss_function=objective_archive[config["task_loss_function"]],
+        loss_function=objective_archive[config["base_loss_fn"]],
         performance_metric=objective_archive[config["evaluation_metric"]],
         **config
     )

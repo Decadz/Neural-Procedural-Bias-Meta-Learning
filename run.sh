@@ -1,9 +1,9 @@
 # Testing Scripts for validating code correctness.
 python3 experiments/run_maml.py --dataset miniimagenet --model conv --num_ways 5 --num_shots 1 --meta_gradient_steps 1000 --seeds 0 --fast True 
 python3 experiments/run_warpgrad.py --dataset miniimagenet --model linearwarpconv --num_ways 5 --num_shots 1 --meta_gradient_steps 1000 --seeds 0 --fast True 
-python3 experiments/run_warpgrad.py --dataset miniimagenet --model warpconv --num_ways 5 --num_shots 1 --meta_gradient_steps 1000 --seeds 0 --fast True 
-python3 experiments/run_maml_pretraining.py --dataset miniimagenet --model conv --num_ways 5 --num_shots 1 --seeds 0 --fast True
+python3 experiments/run_warpgrad.py --dataset miniimagenet --model warpconv --num_ways 5 --num_shots 1 --meta_gradient_steps 1000 --seeds 0 --fast True
 python3 experiments/run_testing.py --method maml --dataset miniimagenet --model conv --num_ways 5 --num_shots 1 --seeds 0 --fast True
+python experiments/run_npbml.py --dataset miniimagenet --model warpconv --num_ways 5 --num_shots 1 --meta_batch_size 4 --seeds 0 --fast True --base_loss_fn learnedloss2
 
 # MAML Few-Shot Learning Experiments.
 python experiments/run_maml.py --dataset omniglot --model conv --num_ways 5 --num_shots 1 --seeds 0 --device cuda:0

@@ -37,10 +37,11 @@ base_bootstrapped_optimizer_settings:
 pretraining_gradient_steps: 200000
 pretraining_batch_size: 128
 
-# Learning objective and performance metric.
+# Learning objectives and performance metric.
 evaluation_metric: "multierrorrate"
-task_loss_function: "celoss"
-matching_loss_function: "mseloss"
+matching_loss_fn: "mseloss"
+meta_loss_fn: "celoss"
+base_loss_fn: "celoss"
 
 # Experiment Settings
 output_path: results/omniglot/

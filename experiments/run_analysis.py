@@ -10,15 +10,17 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def main():
-    #plot_learning_curve()
-    plot_pretraining_learning_curve()
+    plot_learning_curve()
+    #plot_pretraining_learning_curve()
 
 
 def plot_learning_curve():
 
     paths = [
-        "results/miniimagenet/pretrained-maml-miniimagenet-conv-5way-5shot-0.json",
-        "results/miniimagenet/pretrained-maml-miniimagenet-conv-5way-5shot-1.json",
+        "results/miniimagenet/maml-miniimagenet-linearwarpconv-5way-1shot-0.json",
+        "results/miniimagenet/maml-miniimagenet-linearwarpconv-5way-1shot-1.json",
+        "results/miniimagenet/maml-miniimagenet-linearwarpconv-5way-5shot-0.json",
+        "results/miniimagenet/maml-miniimagenet-linearwarpconv-5way-5shot-1.json",
     ]
 
     # Setting the plot settings.
@@ -28,7 +30,7 @@ def plot_learning_curve():
     plt.rcParams["figure.figsize"] = (4.25, 5)  # (8, 4.5)
 
     # Name of the methods and their respective plotting colors.
-    method_names = ["Warp-noBMG", "Warp-BMG"]
+    method_names = ["no pretraining", "no pretraining BMG", "pretraining", "pretraining BMG"]
 
     # Iterating over the different methods.
     for path, method in zip(paths, method_names):
@@ -49,13 +51,14 @@ def plot_learning_curve():
     plt.legend()
     plt.show()
 
-    # plt.savefig("meta-training-svhn-wideresnet.pdf", bbox_inches="tight")
-
 
 def plot_pretraining_learning_curve():
 
     paths = [
-        "results/miniimagenet/pretraining-miniimagenet-resnet-5way-1shot-0.json",
+        "results/omniglot/pretraining-omniglot-conv-5way.json",
+        #"results/omniglot/pretraining-omniglot-conv-20way.json",
+        "results/omniglot/pretraining-omniglot-linearwarpconv-5way.json",
+        "results/omniglot/pretraining-omniglot-warpconv-5way.json",
     ]
 
     # Setting the plot settings.

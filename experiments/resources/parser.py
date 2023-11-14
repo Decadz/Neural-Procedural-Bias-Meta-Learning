@@ -23,10 +23,11 @@ def register_configurations(parser):
     parser.add_argument("--pretraining_gradient_steps", required=False, type=int)
     parser.add_argument("--pretraining_batch_size", required=False, type=int)
 
-    # Inner and Outer Objectives.
+    # Learning Objectives and Performance Metric.
     parser.add_argument("--performance_metric", required=False, type=str)
-    parser.add_argument("--task_loss_function", required=False, type=str)
-    parser.add_argument("--matching_loss_function", required=False, type=str)
+    parser.add_argument("--matching_loss_fn", required=False, type=str)
+    parser.add_argument("--meta_loss_fn", required=False, type=str)
+    parser.add_argument("--base_loss_fn", required=False, type=str)
 
     # Experiment Settings.
     parser.add_argument("--fast", required=False, default=False, type=lambda x: (str(x).lower() == 'true'))

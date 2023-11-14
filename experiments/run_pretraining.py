@@ -91,7 +91,7 @@ def _run_experiment(dataset, model, config, random_state):
         base_model, pretrain_optimizer, pretrain_scheduler, training, validation,
         gradient_steps=config["pretraining_gradient_steps"],
         batch_size=config["pretraining_batch_size"],
-        loss_function=objective_archive[config["task_loss_function"]],
+        loss_function=objective_archive[config["base_loss_fn"]],
         performance_metric=objective_archive[config["evaluation_metric"]],
         device=device, **config
     )

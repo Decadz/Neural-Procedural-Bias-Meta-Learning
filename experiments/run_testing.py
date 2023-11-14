@@ -99,13 +99,13 @@ def _run_experiment(dataset, model, config, random_state):
     # Performing the meta-testing phase.
     training_mean, training_std = meta_testing(
         base_model, base_optimizer, training,
-        loss_function=objective_archive[config["task_loss_function"]],
+        loss_function=objective_archive[config["base_loss_fn"]],
         performance_metric=objective_archive[config["evaluation_metric"]],
         **config
     )
     testing_mean, testing_std = meta_testing(
         base_model, base_optimizer, testing,
-        loss_function=objective_archive[config["task_loss_function"]],
+        loss_function=objective_archive[config["base_loss_fn"]],
         performance_metric=objective_archive[config["evaluation_metric"]],
         **config
     )

@@ -82,17 +82,22 @@ def _run_experiment(dataset, model, config, random_state):
     else:  # If we are using an untrained backbone.
         base_model = model(**config).to(device)
 
+    # The set of available learned loss networks.
+    learned_loss_archive = {
+        "learnedloss1": LearnedLossV1,
+        "learnedloss2": LearnedLossV2,
+        "learnedloss3": LearnedLossV3,
+        "learnedloss4": LearnedLossV4,
+        "learnedloss5": LearnedLossV5,
+        "learnedloss6": LearnedLossV6,
+    }
+
     # Creating the meta learned loss function.
-    learned_loss = LearnedLossNetwork(
-        task_loss_fn=objective_archive[config["task_loss_function"]],
-        input_dim=config["num_ways"]
+    learned_loss = learned_loss_archive[config["base_loss_fn"]](
+        num_ways=config["num_ways"], num_shots=config["num_shots"], test_shots=config["test_shots"],
+        base_model=base_model,  meta_loss_fn=objective_archive[config["meta_loss_fn"]],
     ).to(device)
-    """
-    learned_loss = LossNetworkV1(
-        task_loss_fn=objective_archive[config["task_loss_function"]],
-        base_model=base_model, ** config
-    ).to(device)
-    """
+
     # Creating the base model's *meta* optimizer.
     meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
         list(base_model.parameters()) + list(learned_loss.parameters()),
@@ -125,8 +130,8 @@ def _run_experiment(dataset, model, config, random_state):
     meta_training_history, base_model, learned_loss = meta_training(
         base_model, meta_optimizer, base_optimizer, base_bootstrapped_optimizer,
         meta_scheduler, training, validation,
-        meta_loss_function=objective_archive[config["task_loss_function"]],
-        matching_function=objective_archive[config["matching_loss_function"]],
+        matching_loss_function=objective_archive[config["matching_loss_fn"]],
+        meta_loss_function=objective_archive[config["meta_loss_fn"]],
         performance_metric=objective_archive[config["evaluation_metric"]],
         base_loss_function=learned_loss, **config
     )
