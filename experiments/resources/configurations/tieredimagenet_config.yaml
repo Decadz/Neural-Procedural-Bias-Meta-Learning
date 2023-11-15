@@ -5,7 +5,7 @@ test_shots: 15
 test_tasks: 600
 
 # Meta Optimization used in Meta-Training.
-meta_gradient_steps: 100000
+meta_gradient_steps: 60000
 meta_batch_size: 4
 meta_optimizer_name: "adam"
 meta_optimizer_settings:
@@ -13,8 +13,8 @@ meta_optimizer_settings:
 
 meta_scheduler_name: "cosine"
 meta_scheduler_settings:
-  T_max: 100000
-  eta_min: 0.00001
+  T_max: 60000
+  eta_min: 0.01
 
 # Base Optimization used in Meta-Training.
 base_gradient_steps: 5

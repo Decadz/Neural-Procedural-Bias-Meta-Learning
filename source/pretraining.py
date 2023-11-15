@@ -143,4 +143,5 @@ class _StateCheckpointer(torch.nn.Module):
             # Keeping track of the learning history.
             self.performance_history.append(performance)
 
-        return self.best_performance
+        # Returning the most recent performance.
+        return self.performance_history[-1]
