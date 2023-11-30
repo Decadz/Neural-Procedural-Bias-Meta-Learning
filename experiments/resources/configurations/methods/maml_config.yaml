@@ -1,0 +1,24 @@
+# Pretraining Settings.
+pretrained_backbone: False
+
+# Meta Optimization used in Meta-Training.
+meta_gradient_steps: 60000
+meta_batch_size: 4
+meta_optimizer_name: "adam"
+meta_optimizer_settings:
+  lr: 0.001
+
+# Meta-Scheduler used in Meta-Training
+meta_scheduler_name: "cosine"
+meta_scheduler_settings:
+  T_max: 60000
+  eta_min: 0.001
+
+# Base Optimization used in Meta-Training.
+base_gradient_steps: 5
+base_optimizer_name: "sgd"
+base_optimizer_settings:
+  lr: 0.01
+  momentum: 0.9
+  nesterov: True
+  weight_decay: 0.0005

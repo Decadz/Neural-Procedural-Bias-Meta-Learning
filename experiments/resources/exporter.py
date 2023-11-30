@@ -2,20 +2,23 @@ import torch
 import os
 
 
-def export_model(model, res_directory, file_name, save_state_dictionary=True):
+def export_model(model, res_directory, file_name, save_state_dictionary=True, separate_models_directory=True):
 
     # Exporting the results to a json file.
     if not os.path.exists(res_directory):
         os.makedirs(res_directory)
 
+    # Determining whether to use a nested model directory.
+    directory = res_directory + "models/" if separate_models_directory else res_directory
+
     if model is not None:  # Exporting the trained model to a .pth file.
-        if not os.path.exists(res_directory + "models/"):
-            os.makedirs(res_directory + "models/")
+        if not os.path.exists(directory):
+            os.makedirs(directory)
 
         if save_state_dictionary:
-            torch.save(model.state_dict(), res_directory + "models/" + file_name + ".pth")
+            torch.save(model.state_dict(), directory + file_name + ".pth")
         else:
-            torch.save(model, res_directory + "models/" + file_name + ".pth")
+            torch.save(model, directory + file_name + ".pth")
 
 
 def export_loss(loss, res_directory, file_name, save_state_dictionary=True):

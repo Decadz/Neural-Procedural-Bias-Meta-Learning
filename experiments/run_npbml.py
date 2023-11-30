@@ -12,6 +12,7 @@ import numpy
 import time
 import yaml
 
+# python experiments/run_npbml.py --dataset miniimagenet --model adaconv32 --num_ways 5 --num_shots 5 --meta_batch_size 2 --seeds 0 --device cuda:0
 
 # Use the GPU/CUDA when available, else use the CPU.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -69,11 +70,11 @@ def _run_experiment(dataset, model, config, random_state):
     if config["pretrained_backbone"]:
 
         # The directory and file name for the loading the pretrained base model.
-        res_directory = directory + config["output_path"] + "models/"
+        pretrained_directory = "source/models/pretrained/" + args.dataset + "/"
         file_name = args.dataset + "-" + args.model + "-" + str(config["num_ways"]) + "way.pth"
 
         # Loading the base model from the .pth file
-        base_model_loaded = torch.load(res_directory + file_name, map_location=torch.device('cpu'))
+        base_model_loaded = torch.load(pretrained_directory + file_name, map_location=torch.device('cpu'))
 
         # Creating a base model instances and loading in the state dictionary.
         base_model = model(**config).to(device)
@@ -82,26 +83,9 @@ def _run_experiment(dataset, model, config, random_state):
     else:  # If we are using an untrained backbone.
         base_model = model(**config).to(device)
 
-    # The set of available learned loss networks.
-    learned_loss_archive = {
-        "learnedloss1": LearnedLossV1,
-        "learnedloss2": LearnedLossV2,
-        "learnedloss3": LearnedLossV3,
-        "learnedloss4": LearnedLossV4,
-        "learnedloss5": LearnedLossV5,
-        "learnedloss6": LearnedLossV6,
-    }
-
-    # Creating the meta learned loss function.
-    learned_loss = learned_loss_archive[config["base_loss_fn"]](
-        num_ways=config["num_ways"], num_shots=config["num_shots"], test_shots=config["test_shots"],
-        base_model=base_model,  meta_loss_fn=objective_archive[config["meta_loss_fn"]],
-    ).to(device)
-
     # Creating the base model's *meta* optimizer.
     meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
-        list(base_model.parameters()) + list(learned_loss.parameters()),
-        **config["meta_optimizer_settings"])
+        base_model.film_parameters(), **config["meta_optimizer_settings"])
 
     # Creating the base model's *base* optimizer.
     base_optimizer = optimizer_archive[config["base_optimizer_name"]](
@@ -127,13 +111,14 @@ def _run_experiment(dataset, model, config, random_state):
     results = {"start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}
 
     # Performing the meta-training phase.
-    meta_training_history, base_model, learned_loss = meta_training(
+    meta_training_history, base_model, learned_loss = meta_training_npbml(
         base_model, meta_optimizer, base_optimizer, base_bootstrapped_optimizer,
         meta_scheduler, training, validation,
         matching_loss_function=objective_archive[config["matching_loss_fn"]],
         meta_loss_function=objective_archive[config["meta_loss_fn"]],
+        base_loss_function=objective_archive[config["base_loss_fn"]],
         performance_metric=objective_archive[config["evaluation_metric"]],
-        base_loss_function=learned_loss, **config
+        **config
     )
 
     # Recording the end of the meta-training phase.
@@ -141,15 +126,15 @@ def _run_experiment(dataset, model, config, random_state):
 
     # Exporting the learned model's state dictionary.
     export_model(base_model, res_directory, file_name)
-    export_loss(learned_loss, res_directory, file_name)
+    #export_loss(learned_loss, res_directory, file_name)
 
     # Performing the meta-testing phase.
-    results["training_mean"], results["training_ci"] = meta_testing(
+    results["training_mean"], results["training_ci"] = meta_testing_npbml(
         base_model, base_optimizer, training, loss_function=learned_loss,
         performance_metric=objective_archive[config["evaluation_metric"]],
         **config
     )
-    results["testing_mean"], results["testing_ci"] = meta_testing(
+    results["testing_mean"], results["testing_ci"] = meta_testing_npbml(
         base_model, base_optimizer, testing, loss_function=learned_loss,
         performance_metric=objective_archive[config["evaluation_metric"]],
         **config
@@ -167,15 +152,16 @@ def _run_experiment(dataset, model, config, random_state):
     print("npbml", args.dataset, args.model, "seed", str(random_state), "complete")
 
 
-# Opening the relevant configurations file.
-with open(dataset_archive[args.dataset]["config"]) as file:
-    config = yaml.safe_load(file)
+# Loading the relevant methods configurations file.
+dataset_config = yaml.safe_load(open(dataset_config_archive[args.dataset]))
+method_config = yaml.safe_load(open(method_config_archive["npbml"]))
 
+# Generating the final experimental configurations.
 required_args = {"dataset", "model", "seeds", "device"}
-override_configurations(args, args_unknown, required_args, config)
+config = override_configurations(args, args_unknown, required_args, dataset_config, method_config)
 
 # Retrieving the function for the selected dataset.
-dataset_fn = dataset_archive[args.dataset]["data"]
+dataset_fn = dataset_archive[args.dataset]
 
 # Retrieving the function for the selected model.
 model_fn = model_archive[args.model]

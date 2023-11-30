@@ -8,6 +8,9 @@ def register_configurations(parser):
     parser.add_argument("--num_shots", required=False, type=int)
     parser.add_argument("--test_shots", required=False, type=int)
 
+    # Pretraining Settings.
+    parser.add_argument("--pretrained_backbone", required=False, type=lambda x: (str(x).lower() == 'true'))
+
     # Meta Optimization used in Meta-Training.
     parser.add_argument("--meta_gradient_steps", required=False, type=int)
     parser.add_argument("--meta_optimizer_name", required=False, type=str)
@@ -29,16 +32,26 @@ def register_configurations(parser):
     parser.add_argument("--meta_loss_fn", required=False, type=str)
     parser.add_argument("--base_loss_fn", required=False, type=str)
 
+    # NPBML Settings.
+    parser.add_argument("--task_adaptive", required=False, default=False, type=lambda x: (str(x).lower() == 'true'))
+    parser.add_argument("--step_adaptive", required=False, default=False, type=lambda x: (str(x).lower() == 'true'))
+
     # Experiment Settings.
     parser.add_argument("--fast", required=False, default=False, type=lambda x: (str(x).lower() == 'true'))
-    parser.add_argument("--pretrained_backbone", required=False, type=lambda x: (str(x).lower() == 'true'))
-    parser.add_argument("--track_running_stats", required=False, type=lambda x: (str(x).lower() == 'true'))
     parser.add_argument("--input_channels", required=False, type=int)
     parser.add_argument("--output_path", required=False, type=str)
     parser.add_argument("--verbose", required=False, type=int)
 
 
-def override_configurations(args, args_unknown, required_args, config):
+def override_configurations(args, args_unknown, required_args, dataset_config, method_config):
+
+    # Create a copy of the first dictionary to preserve its original values
+    config = dataset_config.copy()
+
+    # If the key is not in the result dictionary, add it with the corresponding value
+    for key, value in method_config.items():
+        if key not in config:
+            config[key] = value
 
     # Iterating over all the known overridden arguments.
     for arg in vars(args):
@@ -73,3 +86,6 @@ def override_configurations(args, args_unknown, required_args, config):
 
             else:
                 raise ValueError("Don't know how to parse", key, arg)
+
+    return config
+

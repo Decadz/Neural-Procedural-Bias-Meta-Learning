@@ -1,0 +1,15 @@
+# Few-Shot-Learning Settings.
+num_ways: 5
+num_shots: 5
+test_shots: 15
+test_tasks: 600
+
+# Learning objectives and performance metric.
+evaluation_metric: "errorrate"
+meta_loss_fn: "celoss"
+base_loss_fn: "celoss"
+
+# Experiment Settings.
+output_path: results/tieredimagenet/
+input_channels: 3
+verbose: 2

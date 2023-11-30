@@ -1,11 +1,3 @@
-# Importing the base-networks.
-from experiments.resources.models.conv import Conv, WideConv
-from experiments.resources.models.conv import LinearWarpConv, LinearWarpWideConv
-from experiments.resources.models.conv import WarpConv, WarpWideConv
-from experiments.resources.models.resnet import ResNet, WideResNet
-from experiments.resources.models.resnet import LinearWarpResNet, LinearWarpWideResNet
-from experiments.resources.models.resnet import WarpResNet, WarpWideResNet
-
 # Importing the meta-learning datasets.
 from experiments.resources.datasets import Omniglot
 from experiments.resources.datasets import CIFARFS
@@ -16,8 +8,8 @@ from experiments.resources.datasets import TieredImagenet
 # Importing utility functions for running experiments.
 from experiments.resources.parser import register_configurations
 from experiments.resources.parser import override_configurations
-from experiments.resources.metrics import MultiErrorRate
-from experiments.resources.metrics import BinaryErrorRate
+from experiments.resources.metrics import ErrorRate
+from experiments.resources.metrics import Accuracy
 from experiments.resources.exporter import export_results
 from experiments.resources.exporter import export_model
 from experiments.resources.exporter import export_loss
@@ -49,33 +41,36 @@ def kl_divergence(p_target, q_target):
     return (p * (p / q).log()).sum()
 
 
+# Path to the configuration files for the datasets and methods.
+dataset_config_path = "experiments/resources/configurations/datasets/"
+method_config_path = "experiments/resources/configurations/methods/"
+
 dataset_archive = {
-    "omniglot": {"data": Omniglot, "config": "experiments/resources/configurations/omniglot_config.yaml"},
-    "fc100": {"data": FC100, "config": "experiments/resources/configurations/fc100_config.yaml"},
-    "cifarfs": {"data": CIFARFS, "config": "experiments/resources/configurations/cifarfs_config.yaml"},
-    "miniimagenet": {"data": MiniImagenet, "config": "experiments/resources/configurations/miniimagenet_config.yaml"},
-    "tieredimagenet": {"data": TieredImagenet, "config": "experiments/resources/configurations/tieredimagenet_config.yaml"}
+    "omniglot": Omniglot,
+    "fc100": FC100,
+    "cifarfs": CIFARFS,
+    "miniimagenet": MiniImagenet,
+    "tieredimagenet": TieredImagenet
 }
 
+dataset_config_archive = {
+    "omniglot": dataset_config_path + "omniglot_config.yaml",
+    "fc100": dataset_config_path + "fc100_config.yaml",
+    "cifarfs": dataset_config_path + "cifarfs_config.yaml",
+    "miniimagenet": dataset_config_path + "miniimagenet_config.yaml",
+    "tieredimagenet": dataset_config_path + "tieredimagenet_config.yaml",
+}
 
-model_archive = {
-    "conv": Conv,
-    "wideconv": WideConv,
-    "linearwarpconv": LinearWarpConv,
-    "linearwarpwideconv": LinearWarpWideConv,
-    "warpconv": WarpConv,
-    "warpwideconv": WarpWideConv,
-    "resnet": ResNet,
-    "wideresnet": WideResNet,
-    "linearwarpresnet": LinearWarpResNet,
-    "linearwarpwideresnet": LinearWarpWideResNet,
-    "warpresnet": WarpResNet,
-    "warpwideresnet": WarpWideResNet,
+method_config_archive = {
+    "maml": method_config_path + "maml_config.yaml",
+    "warpgrad": method_config_path + "warpgrad_config.yaml",
+    "npbml": method_config_path + "npbml_config.yaml",
+    "pretraining": method_config_path + "pretraining_config.yaml",
 }
 
 objective_archive = {
-    "multierrorrate": MultiErrorRate(),
-    "binaryerrorrate": BinaryErrorRate(),
+    "errorrate": ErrorRate(),
+    "accuracy": Accuracy(),
     "nllloss": torch.nn.NLLLoss(),
     "bceloss": torch.nn.BCELoss(),
     "mseloss": torch.nn.MSELoss(),

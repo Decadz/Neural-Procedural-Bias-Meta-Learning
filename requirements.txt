@@ -1,7 +1,6 @@
 higher==0.2.1
 matplotlib==3.3.3
 numpy==1.22.2
-pandas==1.1.4
 PyYAML==6.0
 setuptools==51.0.0
 six==1.15.0

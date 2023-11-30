@@ -121,15 +121,16 @@ def _run_experiment(dataset, model, config, random_state):
     print(args.method, args.dataset, args.model, "seed", str(random_state), "complete")
 
 
-# Opening the relevant configurations file.
-with open(dataset_archive[args.dataset]["config"]) as file:
-    config = yaml.safe_load(file)
+# Loading the relevant methods configurations file.
+dataset_config = yaml.safe_load(open(dataset_config_archive[args.dataset]))
+method_config = yaml.safe_load(open(method_config_archive[args.method]))
 
+# Generating the final experimental configurations.
 required_args = {"dataset", "model", "seeds", "device"}
-override_configurations(args, args_unknown, required_args, config)
+config = override_configurations(args, args_unknown, required_args, dataset_config, method_config)
 
 # Retrieving the function for the selected dataset.
-dataset_fn = dataset_archive[args.dataset]["data"]
+dataset_fn = dataset_archive[args.dataset]
 
 # Retrieving the function for the selected model.
 model_fn = model_archive[args.model]

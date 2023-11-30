@@ -4,7 +4,6 @@ sys.path.append(os.getcwd())
 from experiments.resources import *
 from source import *
 
-import functools
 import argparse
 import torch
 import random
@@ -69,11 +68,11 @@ def _run_experiment(dataset, model, config, random_state):
     if config["pretrained_backbone"]:
 
         # The directory and file name for the loading the pretrained base model.
-        res_directory = directory + config["output_path"] + "models/"
+        pretrained_directory = "source/models/pretrained/" + args.dataset + "/"
         file_name = args.dataset + "-" + args.model + "-" + str(config["num_ways"]) + "way.pth"
 
         # Loading the base model from the .pth file
-        base_model_loaded = torch.load(res_directory + file_name, map_location=torch.device('cpu'))
+        base_model_loaded = torch.load(pretrained_directory + file_name, map_location=torch.device('cpu'))
 
         # Creating a base model instances and loading in the state dictionary.
         base_model = model(**config).to(device)
@@ -90,11 +89,6 @@ def _run_experiment(dataset, model, config, random_state):
     base_optimizer = optimizer_archive[config["base_optimizer_name"]](
         base_model.adapt_parameters(), **config["base_optimizer_settings"])
 
-    # Creating the *function* for the bootstrapped optimizer.
-    base_bootstrapped_optimizer = functools.partial(
-        optimizer_archive[config["base_bootstrapped_optimizer_name"]],
-        **config["base_bootstrapped_optimizer_settings"])
-
     # Creating the meta learning rate scheduler.
     meta_scheduler = scheduler_archive[config["meta_scheduler_name"]](
         meta_optimizer, **config["meta_scheduler_settings"])
@@ -110,10 +104,9 @@ def _run_experiment(dataset, model, config, random_state):
     results = {"start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}
 
     # Performing the meta-training phase.
-    meta_training_history, base_model, _ = meta_training(
-        base_model, meta_optimizer, base_optimizer, base_bootstrapped_optimizer,
+    meta_training_history, base_model = meta_training_default(
+        base_model, meta_optimizer, base_optimizer,
         meta_scheduler, training, validation,
-        matching_loss_function=objective_archive[config["matching_loss_fn"]],
         meta_loss_function=objective_archive[config["meta_loss_fn"]],
         base_loss_function=objective_archive[config["base_loss_fn"]],
         performance_metric=objective_archive[config["evaluation_metric"]],
@@ -127,13 +120,13 @@ def _run_experiment(dataset, model, config, random_state):
     export_model(base_model, res_directory, file_name)
 
     # Performing the meta-testing phase.
-    results["training_mean"], results["training_ci"] = meta_testing(
+    results["training_mean"], results["training_ci"] = meta_testing_default(
         base_model, base_optimizer, training,
         loss_function=objective_archive[config["base_loss_fn"]],
         performance_metric=objective_archive[config["evaluation_metric"]],
         **config
     )
-    results["testing_mean"], results["testing_ci"] = meta_testing(
+    results["testing_mean"], results["testing_ci"] = meta_testing_default(
         base_model, base_optimizer, testing,
         loss_function=objective_archive[config["base_loss_fn"]],
         performance_metric=objective_archive[config["evaluation_metric"]],
@@ -152,15 +145,16 @@ def _run_experiment(dataset, model, config, random_state):
     print("warpgrad", args.dataset, args.model, "seed", str(random_state), "complete")
 
 
-# Opening the relevant configurations file.
-with open(dataset_archive[args.dataset]["config"]) as file:
-    config = yaml.safe_load(file)
+# Loading the relevant methods configurations file.
+dataset_config = yaml.safe_load(open(dataset_config_archive[args.dataset]))
+method_config = yaml.safe_load(open(method_config_archive["warpgrad"]))
 
+# Generating the final experimental configurations.
 required_args = {"dataset", "model", "seeds", "device"}
-override_configurations(args, args_unknown, required_args, config)
+config = override_configurations(args, args_unknown, required_args, dataset_config, method_config)
 
 # Retrieving the function for the selected dataset.
-dataset_fn = dataset_archive[args.dataset]["data"]
+dataset_fn = dataset_archive[args.dataset]
 
 # Retrieving the function for the selected model.
 model_fn = model_archive[args.model]

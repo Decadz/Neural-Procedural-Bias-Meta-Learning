@@ -1,0 +1,25 @@
+# Few-Shot-Learning Settings.
+num_ways: 5
+num_shots: 5
+test_shots: 15
+test_tasks: 600
+
+# Overridden Meta Optimization Settings.
+meta_batch_size: 32
+
+# Overridden Base Optimization Settings.
+base_optimizer_settings:
+  lr: 0.1
+  momentum: 0.9
+  nesterov: True
+  weight_decay: 0.0005
+
+# Learning objectives and performance metric.
+evaluation_metric: "errorrate"
+meta_loss_fn: "celoss"
+base_loss_fn: "celoss"
+
+# Experiment Settings
+output_path: results/omniglot/
+input_channels: 1
+verbose: 2
