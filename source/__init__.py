@@ -15,6 +15,8 @@ from source.models.resnet import WarpResNet, WarpWideResNet
 
 # Importing the custom base-networks.
 from source.models.adaconvnet import AdaConv32, AdaConv48, AdaConv64, AdaConv128
+from source.models.adaconvnet import AdaWarpConv32, AdaWarpConv48, AdaWarpConv64, AdaWarpConv128
+from source.models.adalossnet import AdaLossNetwork
 
 model_archive = {
     "conv": Conv,
@@ -34,4 +36,8 @@ model_archive = {
     "adaconv48": AdaConv48,
     "adaconv64": AdaConv64,
     "adaconv128": AdaConv128,
+    "adawarpconv32": AdaWarpConv32,
+    "adawarpconv48": AdaWarpConv48,
+    "adawarpconv64": AdaWarpConv64,
+    "adawarpconv128": AdaWarpConv128,
 }

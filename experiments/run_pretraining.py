@@ -24,15 +24,8 @@ torch.backends.cudnn.benchmark = False
 # Parsing arguments to construct experiments.
 # ============================================================
 
+# Reading in all the experimental configurations and settings.
 parser = argparse.ArgumentParser(description="Experiment Runner")
-
-# Experiment settings.
-parser.add_argument("--dataset", required=True, type=str)
-parser.add_argument("--model", required=True, type=str)
-parser.add_argument("--seeds", required=True, type=int, nargs="+")
-parser.add_argument("--device", required=False, type=str)
-
-# Registering all optional configuration hyper-parameters.
 register_configurations(parser)
 
 # Retrieving the dictionary of arguments.
@@ -63,29 +56,31 @@ def _run_experiment(dataset, model, config, random_state):
     # Generating the custom dataset object.
     training, validation, _ = dataset(pretraining=True, device=device, **config)
 
-    # Defining the output results directory and file name.
-    res_directory = directory + config["output_path"]
-    file_name = "pretraining-" + args.dataset + "-" + args.model + "-" + str(config["num_ways"]) + "way"
-
-    print("pretraining", args.dataset, args.model, "seed", str(random_state), "started")
-
-    # Creating a dictionary for recording experiment results.
-    results = {"start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}
-
-    # Creating the base model, with.
+    # Creating the base model.
     base_model = model(
         input_channels=config["input_channels"],
-        track_running_stats=config["track_running_stats"],
         num_ways=training.dataset.num_classes
     ).to(device)
 
-    if "conv" in args.model:  # If using a Conv4 base model train using Adam.
-        pretrain_optimizer = torch.optim.Adam(base_model.adapt_parameters(), lr=0.001, weight_decay=0.0005)
-        pretrain_scheduler = torch.optim.lr_scheduler.MultiStepLR(pretrain_optimizer, milestones=[40000, 60000, 80000, 100000], gamma=0.1)
-        
-    elif "resnet" in args.model:  # If using a ResNet base model train using SGD.
-        pretrain_optimizer = torch.optim.SGD(base_model.adapt_parameters(), lr=0.1, momentum=0.9, nesterov=True, weight_decay=0.0005)
-        pretrain_scheduler = torch.optim.lr_scheduler.MultiStepLR(pretrain_optimizer, milestones=[80000, 100000, 110000, 120000], gamma=0.1)
+    # If using a Conv4 base model train using Adam.
+    if "conv" in args.model:
+        pretrain_optimizer = torch.optim.Adam(
+            base_model.adapt_parameters(), lr=0.001, weight_decay=0.0005)
+
+        pretrain_scheduler = torch.optim.lr_scheduler.MultiStepLR(
+            pretrain_optimizer, milestones=[40000, 60000, 80000, 100000], gamma=0.1)
+
+    # If using a ResNet base model train using SGD.
+    elif "resnet" in args.model:
+        pretrain_optimizer = torch.optim.SGD(
+            base_model.adapt_parameters(), lr=0.1, momentum=0.9, nesterov=True, weight_decay=0.0005)
+
+        pretrain_scheduler = torch.optim.lr_scheduler.MultiStepLR(
+            pretrain_optimizer, milestones=[80000, 100000, 110000, 120000], gamma=0.1)
+
+    # Creating a results dictionary and recording the start time of the experiment.
+    results = {"start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}
+    print("pretraining", args.dataset, args.model, "seed", str(random_state), "started")
 
     base_model, meta_history, fine_tuning_history = pretrain(
         base_model, pretrain_optimizer, pretrain_scheduler, training, validation,
@@ -110,7 +105,9 @@ def _run_experiment(dataset, model, config, random_state):
     base_model.output_layer.bias.data.zero_()
 
     # Saving the pretrained model.
-    export_model(base_model, res_directory, args.dataset + "-" + args.model + "-" + str(config["num_ways"]) + "way")
+    pretrained_directory = "source/models/pretrained/" + args.dataset + "/"
+    export_model(base_model, pretrained_directory, args.dataset + "-" + args.model +
+                 "-" + str(config["num_ways"]) + "way", separate_models_directory=False)
 
     # Recording the experiment configurations.
     results["experiment_configuration"] = config.copy()
@@ -120,20 +117,27 @@ def _run_experiment(dataset, model, config, random_state):
     results["fine_tuning_history"] = fine_tuning_history
 
     # Exporting the results to a json file.
+    res_directory = directory + config["output_path"]
+    file_name = "pretraining-" + args.dataset + "-" + args.model + "-" + str(config["num_ways"]) + "way"
+
+    # Recording information about the experiment.
+    results["command"] = "python " + " ".join(sys.argv)  # Recording the python command used.
+
     export_results(results, res_directory, file_name)
 
     print("pretraining", args.dataset, args.model, "seed", str(random_state), "complete")
 
 
-# Opening the relevant configurations file.
-with open(dataset_archive[args.dataset]["config"]) as file:
-    config = yaml.safe_load(file)
+# Loading the relevant methods configurations file.
+dataset_config = yaml.safe_load(open(dataset_config_archive[args.dataset]))
+method_config = yaml.safe_load(open(method_config_archive["pretraining"]))
 
+# Generating the final experimental configurations.
 required_args = {"dataset", "model", "seeds", "device"}
-override_configurations(args, args_unknown, required_args, config)
+config = override_configurations(args, args_unknown, required_args, dataset_config, method_config)
 
 # Retrieving the function for the selected dataset.
-dataset_fn = dataset_archive[args.dataset]["data"]
+dataset_fn = dataset_archive[args.dataset]
 
 # Retrieving the function for the selected model.
 model_fn = model_archive[args.model]

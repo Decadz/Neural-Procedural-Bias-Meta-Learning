@@ -17,7 +17,7 @@ def meta_training_default(base_model, meta_optimizer, base_optimizer, meta_sched
     # Performing the meta-training phase using unrolled differentiation to update meta parameters.
     for step in (training_progress := tqdm.tqdm(
             range(meta_gradient_steps), position=0, dynamic_ncols=True,
-            disable=False if verbose >= 1 else True, leave=False)):
+            disable=True if verbose == 0 else False, leave=False)):
 
         # Clearing the gradient cache.
         meta_optimizer.zero_grad()
@@ -73,7 +73,8 @@ def meta_testing_default(base_model, base_optimizer, dataset, base_gradient_step
     # List for keeping track of the learning history.
     performance_history = []
 
-    for _ in range(test_tasks):
+    for _ in (tqdm.tqdm(range(test_tasks), position=1, dynamic_ncols=True, desc="Validating Performance",
+                        disable=True if verbose >= 1 else False, leave=False)):
 
         # Sampling a batch of support and query instances.
         X_support, y_support, X_query, y_query = next(dataset)

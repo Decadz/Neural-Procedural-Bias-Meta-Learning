@@ -25,15 +25,8 @@ torch.backends.cudnn.benchmark = False
 # Parsing arguments to construct experiments.
 # ============================================================
 
+# Reading in all the experimental configurations and settings.
 parser = argparse.ArgumentParser(description="Experiment Runner")
-
-# Experiment settings.
-parser.add_argument("--dataset", required=True, type=str)
-parser.add_argument("--model", required=True, type=str)
-parser.add_argument("--seeds", required=True, type=int, nargs="+")
-parser.add_argument("--device", required=False, type=str)
-
-# Registering all optional configuration hyper-parameters.
 register_configurations(parser)
 
 # Retrieving the dictionary of arguments.
@@ -98,10 +91,9 @@ def _run_experiment(dataset, model, config, random_state):
     file_name = "warpgrad-" + args.dataset + "-" + args.model + "-" + \
                 str(config["num_ways"]) + "way-" + str(config["num_shots"]) + "shot-" + str(random_state)
 
-    print("warpgrad", args.dataset, args.model, "seed", str(random_state), "started")
-
-    # Creating a dictionary for recording experiment results.
+    # Creating a results dictionary and recording the start time of the experiment.
     results = {"start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}
+    print("warpgrad", args.dataset, args.model, "seed", str(random_state), "started")
 
     # Performing the meta-training phase.
     meta_training_history, base_model = meta_training_default(
@@ -138,6 +130,9 @@ def _run_experiment(dataset, model, config, random_state):
 
     # Recording the training history.
     results["meta_training_history"] = meta_training_history
+
+    # Recording information about the experiment.
+    results["command"] = "python " + " ".join(sys.argv)  # Recording the python command used.
 
     # Exporting the results to a json file.
     export_results(results, res_directory, file_name)

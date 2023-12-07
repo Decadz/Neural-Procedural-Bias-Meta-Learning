@@ -17,11 +17,18 @@ def main():
 def plot_learning_curve():
 
     paths = [
-        "results/miniimagenet/maml-miniimagenet-conv-5way-1shot-0.json",
-        "results/miniimagenet/metal-miniimagenet-wideconv-5way-1shot-0.json",
-
-        "results/miniimagenet/maml-miniimagenet-conv-5way-5shot-0.json",
-        "results/miniimagenet/metal-miniimagenet-wideconv-5way-5shot-0.json",
+        #"results/miniimagenet/npbml-miniimagenet-adaconv32-5way-1shot-0.json",
+        #"results/miniimagenet/npbml-miniimagenet-adaconv48-5way-1shot-0.json",
+        #"results/miniimagenet/npbml-miniimagenet-adaconv64-5way-1shot-0.json",
+        #"results/miniimagenet/npbml-miniimagenet-adaconv128-5way-1shot-0.json",
+        #"results/miniimagenet/npbml-miniimagenet-adaconv32-5way-5shot-0.json",
+        #"results/miniimagenet/npbml-miniimagenet-adaconv48-5way-5shot-0.json",
+        #"results/miniimagenet/npbml-miniimagenet-adaconv64-5way-5shot-0.json",
+        #"results/miniimagenet/npbml-miniimagenet-adaconv128-5way-5shot-0.json"
+        "results/miniimagenet/npbml-ablating-each-component/npbml-miniimagenet-adawarpconv32-5way-5shot-0.json",
+        "results/miniimagenet/npbml-ablating-each-component/npbml-miniimagenet-adawarpconv32-5way-5shot-1.json",
+        "results/miniimagenet/npbml-ablating-each-component/npbml-miniimagenet-adawarpconv32-5way-5shot-2.json",
+        "results/miniimagenet/npbml-ablating-each-component/npbml-miniimagenet-adawarpconv32-5way-5shot-3.json"
     ]
 
     # Setting the plot settings.
@@ -31,7 +38,7 @@ def plot_learning_curve():
     plt.rcParams["figure.figsize"] = (4.25, 5)  # (8, 4.5)
 
     # Name of the methods and their respective plotting colors.
-    method_names = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+    method_names = ["32 (theta)", "32 (theta, w)", "32 (theta, phi)", "32 (theta, w, phi)"]
 
     # Iterating over the different methods.
     for path, method in zip(paths, method_names):
@@ -56,10 +63,15 @@ def plot_learning_curve():
 def plot_pretraining_learning_curve():
 
     paths = [
-        "results/omniglot/pretraining-omniglot-conv-5way.json",
-        #"results/omniglot/pretraining-omniglot-conv-20way.json",
-        "results/omniglot/pretraining-omniglot-linearwarpconv-5way.json",
-        "results/omniglot/pretraining-omniglot-warpconv-5way.json",
+        "results/miniimagenet/pretraining-miniimagenet-adaconv32-5way.json",
+        "results/miniimagenet/pretraining-miniimagenet-adaconv48-5way.json",
+        "results/miniimagenet/pretraining-miniimagenet-adaconv64-5way.json",
+        "results/miniimagenet/pretraining-miniimagenet-adaconv128-5way.json",
+        "results/miniimagenet/pretraining-miniimagenet-adawarpconv32-5way.json",
+        "results/miniimagenet/pretraining-miniimagenet-adawarpconv48-5way.json",
+        "results/miniimagenet/pretraining-miniimagenet-adawarpconv64-5way.json",
+        "results/miniimagenet/pretraining-miniimagenet-adawarpconv128-5way.json",
+
     ]
 
     # Setting the plot settings.
@@ -69,7 +81,7 @@ def plot_pretraining_learning_curve():
     plt.rcParams["figure.figsize"] = (4.25, 5)  # (8, 4.5)
 
     # Name of the methods and their respective plotting colors.
-    method_names = ["0 - Proto Model", "1 - Final model", "2 - Proto Wide"]
+    method_names = ["1", "2", "3", "4", "5", "6", "7", "8"]
 
     # Iterating over the different methods.
     for path, method in zip(paths, method_names):

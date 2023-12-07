@@ -12,7 +12,7 @@ import numpy
 import time
 import yaml
 
-# python experiments/run_npbml.py --dataset miniimagenet --model adaconv32 --num_ways 5 --num_shots 5 --meta_batch_size 2 --seeds 0 --device cuda:0
+# python experiments/run_npbml.py --dataset miniimagenet --model adaconv32 --num_ways 5 --num_shots 5 --meta_batch_size 2 --pretrained_backbone True --seeds 0 --device cuda:0
 
 # Use the GPU/CUDA when available, else use the CPU.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -27,15 +27,8 @@ torch.backends.cudnn.benchmark = False
 # Parsing arguments to construct experiments.
 # ============================================================
 
+# Reading in all the experimental configurations and settings.
 parser = argparse.ArgumentParser(description="Experiment Runner")
-
-# Experiment settings.
-parser.add_argument("--dataset", required=True, type=str)
-parser.add_argument("--model", required=True, type=str)
-parser.add_argument("--seeds", required=True, type=int, nargs="+")
-parser.add_argument("--device", required=False, type=str)
-
-# Registering all optional configuration hyper-parameters.
 register_configurations(parser)
 
 # Retrieving the dictionary of arguments.
@@ -83,9 +76,90 @@ def _run_experiment(dataset, model, config, random_state):
     else:  # If we are using an untrained backbone.
         base_model = model(**config).to(device)
 
-    # Creating the base model's *meta* optimizer.
+    # Creating the meta learned loss function.
+    learned_loss = AdaLossNetwork(
+        num_ways=config["num_ways"], task_loss_fn=objective_archive[config["meta_loss_fn"]],
+    ).to(device)
+
+    # TODO - Normal Head. Meta Learning Theta. NEED TO Comment out cone sync in AdaConv
+    #"""
     meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
-        base_model.film_parameters(), **config["meta_optimizer_settings"])
+       list(base_model.encoder.adapt1.parameters()) +
+       list(base_model.encoder.adapt2.parameters()) +
+       list(base_model.encoder.adapt3.parameters()) +
+       list(base_model.encoder.adapt4.parameters()) +
+       list(base_model.output_layer.parameters()),
+       **config["meta_optimizer_settings"])
+    #"""
+
+    # TODO - Normal Head. Meta Learning Theta and phi. NEED TO Comment out cone sync in AdaConv
+    """
+    meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
+       list(base_model.encoder.adapt1.parameters()) +
+       list(base_model.encoder.adapt2.parameters()) +
+       list(base_model.encoder.adapt3.parameters()) +
+       list(base_model.encoder.adapt4.parameters()) +
+       list(base_model.output_layer.parameters()) + 
+       list(learned_loss.parameters()),
+       **config["meta_optimizer_settings"])
+    """
+
+    # TODO - Normal Head. Meta Learning Theta and w.  NEED TO Comment out cone sync in AdaConv
+    """
+    meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
+        list(base_model.encoder.parameters()) + 
+        list(base_model.output_layer.parameters()),
+        **config["meta_optimizer_settings"])
+    """
+
+    # TODO - Normal Head. Meta Learning Theta, w, and phi.  NEED TO Comment out cone sync in AdaConv
+    """
+    meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
+       list(base_model.encoder.parameters()) + 
+       list(base_model.output_layer.parameters()) + 
+       list(learned_loss.parameters()),
+       **config["meta_optimizer_settings"])
+    """
+
+    # TODO - Permutation Invariant Head. Meta Learning Theta.
+    """
+    meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
+       list(base_model.encoder.adapt1.parameters()) +
+       list(base_model.encoder.adapt2.parameters()) +
+       list(base_model.encoder.adapt3.parameters()) +
+       list(base_model.encoder.adapt4.parameters()) +
+       list(base_model.output_cone.parameters()),
+       **config["meta_optimizer_settings"])
+    """
+
+    # TODO - Permutation Invariant Head. Meta Learning Theta and phi.
+    """
+    meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
+       list(base_model.encoder.adapt1.parameters()) +
+       list(base_model.encoder.adapt2.parameters()) +
+       list(base_model.encoder.adapt3.parameters()) +
+       list(base_model.encoder.adapt4.parameters()) +
+       list(base_model.output_cone.parameters()) + 
+       list(learned_loss.parameters()),
+       **config["meta_optimizer_settings"])
+    """
+
+    # TODO - Permutation Invariant Head. Meta Learning Theta and w.
+    """
+    meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
+        list(base_model.encoder.parameters()) + 
+        list(base_model.output_cone.parameters()),
+        **config["meta_optimizer_settings"])
+    """
+
+    # TODO - Permutation Invariant Head. Meta Learning Theta, w, and phi.
+    """
+    meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
+       list(base_model.encoder.parameters()) + 
+       list(base_model.output_cone.parameters()) + 
+       list(learned_loss.parameters()),
+       **config["meta_optimizer_settings"])
+    """
 
     # Creating the base model's *base* optimizer.
     base_optimizer = optimizer_archive[config["base_optimizer_name"]](
@@ -105,10 +179,9 @@ def _run_experiment(dataset, model, config, random_state):
     file_name = "npbml-" + args.dataset + "-" + args.model + "-" + \
                 str(config["num_ways"]) + "way-" + str(config["num_shots"]) + "shot-" + str(random_state)
 
-    print("npbml", args.dataset, args.model, "seed", str(random_state), "started")
-
-    # Creating a dictionary for recording experiment results.
+    # Creating a results dictionary and recording the start time of the experiment.
     results = {"start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}
+    print("npbml", args.dataset, args.model, "seed", str(random_state), "started")
 
     # Performing the meta-training phase.
     meta_training_history, base_model, learned_loss = meta_training_npbml(
@@ -116,7 +189,7 @@ def _run_experiment(dataset, model, config, random_state):
         meta_scheduler, training, validation,
         matching_loss_function=objective_archive[config["matching_loss_fn"]],
         meta_loss_function=objective_archive[config["meta_loss_fn"]],
-        base_loss_function=objective_archive[config["base_loss_fn"]],
+        base_loss_function=learned_loss,  #  objective_archive[config["base_loss_fn"]],  # TODO
         performance_metric=objective_archive[config["evaluation_metric"]],
         **config
     )
@@ -130,12 +203,12 @@ def _run_experiment(dataset, model, config, random_state):
 
     # Performing the meta-testing phase.
     results["training_mean"], results["training_ci"] = meta_testing_npbml(
-        base_model, base_optimizer, training, loss_function=learned_loss,
+        base_model, base_optimizer, training, loss_function=learned_loss, #  TODO - objective_archive[config["base_loss_fn"]],
         performance_metric=objective_archive[config["evaluation_metric"]],
         **config
     )
     results["testing_mean"], results["testing_ci"] = meta_testing_npbml(
-        base_model, base_optimizer, testing, loss_function=learned_loss,
+        base_model, base_optimizer, testing, loss_function=learned_loss, #  TODO - objective_archive[config["base_loss_fn"]],
         performance_metric=objective_archive[config["evaluation_metric"]],
         **config
     )
@@ -145,6 +218,9 @@ def _run_experiment(dataset, model, config, random_state):
 
     # Recording the training history.
     results["meta_training_history"] = meta_training_history
+
+    # Recording information about the experiment.
+    results["command"] = "python " + " ".join(sys.argv)  # Recording the python command used.
 
     # Exporting the results to a json file.
     export_results(results, res_directory, file_name)

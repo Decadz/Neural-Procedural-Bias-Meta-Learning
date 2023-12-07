@@ -1,8 +1,8 @@
 # Testing Scripts for validating code correctness.
-python3 experiments/run_maml.py --dataset miniimagenet --model conv --num_ways 5 --num_shots 1 --meta_gradient_steps 1000 --seeds 0 --fast True 
-python3 experiments/run_warpgrad.py --dataset miniimagenet --model linearwarpconv --num_ways 5 --num_shots 1 --meta_gradient_steps 1000 --seeds 0 --fast True 
-python3 experiments/run_warpgrad.py --dataset miniimagenet --model warpconv --num_ways 5 --num_shots 1 --meta_gradient_steps 1000 --seeds 0 --fast True
-python3 experiments/run_testing.py --method maml --dataset miniimagenet --model conv --num_ways 5 --num_shots 1 --seeds 0 --fast True
+python experiments/run_maml.py --dataset miniimagenet --model conv --num_ways 5 --num_shots 1 --meta_gradient_steps 1000 --seeds 0 --fast True
+python experiments/run_warpgrad.py --dataset miniimagenet --model linearwarpconv --num_ways 5 --num_shots 1 --meta_gradient_steps 1000 --seeds 0 --fast True
+python experiments/run_warpgrad.py --dataset miniimagenet --model warpconv --num_ways 5 --num_shots 1 --meta_gradient_steps 1000 --seeds 0 --fast True
+python experiments/run_testing.py --method maml --dataset miniimagenet --model conv --num_ways 5 --num_shots 1 --seeds 0 --fast True
 python experiments/run_npbml.py --dataset miniimagenet --model warpconv --num_ways 5 --num_shots 1 --meta_batch_size 4 --seeds 0 --fast True --base_loss_fn learnedloss2
 
 # MAML Few-Shot Learning Experiments.
@@ -130,6 +130,27 @@ python experiments/run_pretraining.py --dataset miniimagenet --model warpconv --
 python experiments/run_pretraining.py --dataset fc100 --model warpconv --seeds 0 --device cuda:0
 python experiments/run_pretraining.py --dataset cifarfs --model warpconv --seeds 0 --device cuda:0
 python experiments/run_pretraining.py --dataset tieredimagenet --model warpconv --seeds 0 --device cuda:0
+
+python experiments/run_pretraining.py --dataset omniglot --model wideconv --num_ways 5 --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset omniglot --model wideconv --num_ways 20 --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset miniimagenet --model wideconv --num_ways 5 --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset fc100 --model wideconv --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset cifarfs --model wideconv --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset tieredimagenet --model wideconv --seeds 0 --device cuda:0
+
+python experiments/run_pretraining.py --dataset omniglot --model linearwarpwideconv --num_ways 5 --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset omniglot --model linearwarpwideconv --num_ways 20 --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset miniimagenet --model linearwarpwideconv --num_ways 5 --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset fc100 --model linearwarpwideconv --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset cifarfs --model linearwarpwideconv --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset tieredimagenet --model linearwarpwideconv --seeds 0 --device cuda:0
+
+python experiments/run_pretraining.py --dataset omniglot --model warpwideconv --num_ways 5 --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset omniglot --model warpwideconv --num_ways 20 --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset miniimagenet --model warpwideconv --num_ways 5 --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset fc100 --model warpwideconv --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset cifarfs --model warpwideconv --seeds 0 --device cuda:0
+python experiments/run_pretraining.py --dataset tieredimagenet --model warpwideconv --seeds 0 --device cuda:0
 
 python experiments/run_pretraining.py --dataset miniimagenet --model resnet --seeds 0 --device cuda:0
 python experiments/run_pretraining.py --dataset fc100 --model resnet --seeds 0 --device cuda:0

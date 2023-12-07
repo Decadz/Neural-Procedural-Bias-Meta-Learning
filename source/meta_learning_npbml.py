@@ -17,7 +17,7 @@ def meta_training_npbml(base_model, meta_optimizer, base_optimizer, base_bootstr
     # Performing the meta-training phase using unrolled differentiation to update meta parameters.
     for step in (training_progress := tqdm.tqdm(
             range(meta_gradient_steps), position=0, dynamic_ncols=True,
-            disable=False if verbose >= 1 else True, leave=False)):
+            disable=True if verbose == 0 else False, leave=False)):
 
         # Clearing the gradient cache.
         meta_optimizer.zero_grad()
@@ -34,44 +34,27 @@ def meta_training_npbml(base_model, meta_optimizer, base_optimizer, base_bootstr
                 # Resetting the running statistics for all batch normalization layers.
                 fmodel.reset_batch_norm()
 
+                # Merging the support and query into one batch.
+                #X_support_query = torch.cat((X_support, X_query), dim=0)
+
                 # Taking a predetermined number of inner steps before meta update.
                 for inner_step in range(base_gradient_steps):
 
-                    # Computing the loss using the learned loss and updating the base weights.
-                    yp_support = fmodel(X_support, inner_step == 0)  # Computing the predictions on support set.
+                    # Computing the predictions on both the support and query set.
+                    #yp_support_query = fmodel(X_support_query, inner_step == 0)
+                    #yp_support, _ = torch.split(yp_support_query, [y_support.size(0), y_query.size(0)], dim=0)
+
+                    yp_support = fmodel(X_support, inner_step == 0)  # Computing the predictions on the support set.
                     loss_support = base_loss_function(yp_support, y_support)  # Finding the loss wrt. support set.
                     diffopt.step(loss_support)  # Update base network weights (theta).
 
-                # Perform the typical unrolled differentiation objective.
-                #if base_bootstrapped_gradient_steps == 0:
-
                 # Computing the task loss and updating the meta weights.
-                yp_query = fmodel(X_query)  # Computing the base network predictions on query.
+                yp_query = fmodel(X_query, inner_step == 0)  # Computing the base network predictions on query.
+                #yp_support_query = fmodel(X_support_query, inner_step == 0)
+                #_, yp_query = torch.split(yp_support_query, [y_support.size(0), y_query.size(0)], dim=0)
                 loss_query = meta_loss_function(yp_query, y_query)  # Finding the loss wrt. query set.
                 loss_query.div_(meta_batch_size)  # Dividing the loss by the batch size.
                 loss_query.backward()  # Unrolls through the gradient steps.
-                """
-                else:
-                    # Creating a copy of the base model for generating a bootstrapping target.
-                    bootstrapped_model = copy.deepcopy(base_model)
-                    bootstrapped_model.load_state_dict(copy.deepcopy(fmodel.state_dict()))
-                    bootstrapped_optimizer = base_bootstrapped_optimizer(bootstrapped_model.adapt_parameters())
-
-                    # Taking a predetermined number of bootstrapping steps.
-                    for _ in range(base_bootstrapped_gradient_steps):
-                        bootstrapped_optimizer.zero_grad()  # Clearing out the gradient cache.
-                        yp_query = bootstrapped_model(X_query)  # Computing the base network predictions on query.
-                        loss_query = meta_loss_function(yp_query, y_query)  # Finding the loss wrt. query set.
-                        loss_query.backward()  # Computing the gradients wrt. to the loss.
-                        bootstrapped_optimizer.step()  # Updating the model parameters.
-
-                    # Performing the meta-update by using a matching function.
-                    target_output = torch.nn.utils.parameters_to_vector(fmodel.adapt_parameters())
-                    target_bootstrapped = torch.nn.utils.parameters_to_vector(bootstrapped_model.adapt_parameters())
-                    task_loss = matching_loss_function(target_output, target_bootstrapped)
-                    task_loss.div_(meta_batch_size)
-                    task_loss.backward()
-                """
 
         # Applying meta-gradient clipping as done in MAML++.
         torch.nn.utils.clip_grad_value_(base_model.parameters(), clip_value=10)
@@ -98,7 +81,8 @@ def meta_testing_npbml(base_model, base_optimizer, dataset, base_gradient_steps,
     # List for keeping track of the learning history.
     performance_history = []
 
-    for _ in range(test_tasks):
+    for _ in (tqdm.tqdm(range(test_tasks), position=1, dynamic_ncols=True, desc="Validating Performance",
+                        disable=True if verbose >= 1 else False, leave=False)):
 
         # Sampling a batch of support and query instances.
         X_support, y_support, X_query, y_query = next(dataset)
@@ -110,13 +94,22 @@ def meta_testing_npbml(base_model, base_optimizer, dataset, base_gradient_steps,
             # Resetting the running statistics for all batch normalization layers.
             fmodel.reset_batch_norm()
 
+            # Merging the support and query into one batch.
+            #X_support_query = torch.cat((X_support, X_query), dim=0)
+
             # Taking a predetermined number of inner steps before meta update.
             for inner_step in range(base_gradient_steps):
 
-                # Computing the loss using the learned loss and updating the base weights.
+                # Computing the predictions on both the support and query set.
+                #yp_support_query = fmodel(X_support_query, inner_step == 0)
+                #yp_support, _ = torch.split(yp_support_query, [y_support.size(0), y_query.size(0)], dim=0)
+
                 yp_support = fmodel(X_support, inner_step == 0)  # Computing the predictions on support set.
                 loss_support = loss_function(yp_support, y_support)  # Finding the loss wrt. support set.
                 diffopt.step(loss_support)  # Update base network weights (theta).
+
+            #yp_support_query = fmodel(X_support_query, inner_step == 0)
+            #_, yp_query = torch.split(yp_support_query, [y_support.size(0), y_query.size(0)], dim=0)
 
             # Computing the task loss and updating the meta weights.
             yp_query = fmodel(X_query)  # Computing the base network predictions on query.
