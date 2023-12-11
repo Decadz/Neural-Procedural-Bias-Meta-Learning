@@ -148,7 +148,8 @@ class _StateCheckpointerDefault(torch.nn.Module):
 
             # Mapping the optimizer parameters to the best model parameters.
             if step == self.meta_gradient_steps - 1:
-                self.base_optimizer.param_groups[0].update({"params": list(self.best_model.parameters())})
+                self.base_optimizer.param_groups[0].update({
+                    "params": list(self.best_model.base_parameters())})
 
             # Keeping track of the learning history.
             self.performance_history.append(performance)

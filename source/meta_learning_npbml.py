@@ -11,7 +11,7 @@ def meta_training_npbml(base_model, meta_optimizer, base_optimizer, base_bootstr
 
     # Objects for keeping track of the learning history.
     checkpointer = _StateCheckpointerNPBML(
-        base_optimizer, validation, base_gradient_steps, meta_gradient_steps, performance_metric
+        base_optimizer, validation, base_gradient_steps, meta_gradient_steps, performance_metric, verbose
     )
 
     # Performing the meta-training phase using unrolled differentiation to update meta parameters.
@@ -45,7 +45,7 @@ def meta_training_npbml(base_model, meta_optimizer, base_optimizer, base_bootstr
                     #yp_support, _ = torch.split(yp_support_query, [y_support.size(0), y_query.size(0)], dim=0)
 
                     yp_support = fmodel(X_support, inner_step == 0)  # Computing the predictions on the support set.
-                    loss_support = base_loss_function(yp_support, y_support)  # Finding the loss wrt. support set.
+                    loss_support = base_loss_function(yp_support, y_support, inner_step == 0)  # Finding the loss wrt. support set.
                     diffopt.step(loss_support)  # Update base network weights (theta).
 
                 # Computing the task loss and updating the meta weights.
@@ -82,7 +82,7 @@ def meta_testing_npbml(base_model, base_optimizer, dataset, base_gradient_steps,
     performance_history = []
 
     for _ in (tqdm.tqdm(range(test_tasks), position=1, dynamic_ncols=True, desc="Validating Performance",
-                        disable=True if verbose >= 1 else False, leave=False)):
+                        disable=True if verbose <= 1 else False, leave=False)):
 
         # Sampling a batch of support and query instances.
         X_support, y_support, X_query, y_query = next(dataset)
@@ -105,7 +105,7 @@ def meta_testing_npbml(base_model, base_optimizer, dataset, base_gradient_steps,
                 #yp_support, _ = torch.split(yp_support_query, [y_support.size(0), y_query.size(0)], dim=0)
 
                 yp_support = fmodel(X_support, inner_step == 0)  # Computing the predictions on support set.
-                loss_support = loss_function(yp_support, y_support)  # Finding the loss wrt. support set.
+                loss_support = loss_function(yp_support, y_support, inner_step == 0)  # Finding the loss wrt. support set.
                 diffopt.step(loss_support)  # Update base network weights (theta).
 
             #yp_support_query = fmodel(X_support_query, inner_step == 0)
@@ -128,7 +128,7 @@ def meta_testing_npbml(base_model, base_optimizer, dataset, base_gradient_steps,
 class _StateCheckpointerNPBML(torch.nn.Module):
 
     def __init__(self, base_optimizer, dataset, base_gradient_steps, meta_gradient_steps,
-                 performance_metric, test_tasks=600, frequency=500, **kwargs):
+                 performance_metric, verbose, test_tasks=600, frequency=500, **kwargs):
         super(_StateCheckpointerNPBML, self).__init__()
 
         # Settings used for the checkpointing.
@@ -138,6 +138,7 @@ class _StateCheckpointerNPBML(torch.nn.Module):
         self.base_optimizer = base_optimizer
         self.test_tasks = test_tasks
         self.frequency = frequency
+        self.verbose = verbose
         self.dataset = dataset
 
         # Tracking the best base model so far.
@@ -156,18 +157,26 @@ class _StateCheckpointerNPBML(torch.nn.Module):
             # Performing the meta-validation stage.
             performance, _ = meta_testing_npbml(
                 base_model, self.base_optimizer, self.dataset, self.base_gradient_steps,
-                loss_function, self.performance_metric, self.test_tasks, 0
+                loss_function, self.performance_metric, self.test_tasks, self.verbose
             )
 
             # If this is the best model so far then cache the model.
             if self.best_model is None or performance < self.best_performance:
                 self.best_performance = performance
-                self.best_loss_function = copy.deepcopy(loss_function)
                 self.best_model = copy.deepcopy(base_model)
+
+                # Overriding the value of gamma and beta, otherwise error will be thrown.
+                for module in loss_function.modules():
+                    if hasattr(module, "gamma") or hasattr(module, "beta"):
+                        module.gamma = torch.zeros(module.linear.out_features, requires_grad=False)
+                        module.beta = torch.zeros(module.linear.out_features, requires_grad=False)
+
+                self.best_loss_function = copy.deepcopy(loss_function)
 
             # Mapping the optimizer parameters to the best model parameters.
             if step == self.meta_gradient_steps - 1:
-                self.base_optimizer.param_groups[0].update({"params": list(self.best_model.parameters())})
+                self.base_optimizer.param_groups[0].update({
+                    "params": list(self.best_model.base_parameters())})
 
             # Keeping track of the learning history.
             self.performance_history.append(performance)

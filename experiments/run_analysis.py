@@ -10,8 +10,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def main():
-    plot_learning_curve()
-    #plot_pretraining_learning_curve()
+    #plot_learning_curve()
+    plot_pretraining_learning_curve()
 
 
 def plot_learning_curve():
@@ -25,10 +25,12 @@ def plot_learning_curve():
         #"results/miniimagenet/npbml-miniimagenet-adaconv48-5way-5shot-0.json",
         #"results/miniimagenet/npbml-miniimagenet-adaconv64-5way-5shot-0.json",
         #"results/miniimagenet/npbml-miniimagenet-adaconv128-5way-5shot-0.json"
-        "results/miniimagenet/npbml-ablating-each-component/npbml-miniimagenet-adawarpconv32-5way-5shot-0.json",
-        "results/miniimagenet/npbml-ablating-each-component/npbml-miniimagenet-adawarpconv32-5way-5shot-1.json",
-        "results/miniimagenet/npbml-ablating-each-component/npbml-miniimagenet-adawarpconv32-5way-5shot-2.json",
-        "results/miniimagenet/npbml-ablating-each-component/npbml-miniimagenet-adawarpconv32-5way-5shot-3.json"
+        "results/miniimagenet/npbml-ablating-meta-learning-rate/npbml-miniimagenet-adawarpconv32-5way-5shot-4.json",
+        "results/miniimagenet/npbml-ablating-meta-learning-rate/npbml-miniimagenet-adawarpconv32-5way-5shot-5.json",
+        "results/miniimagenet/npbml-ablating-meta-learning-rate/npbml-miniimagenet-adawarpconv32-5way-5shot-6.json",
+        "results/miniimagenet/npbml-ablating-meta-learning-rate/npbml-miniimagenet-adawarpconv32-5way-5shot-7.json",
+        "results/miniimagenet/npbml-ablating-meta-learning-rate/npbml-miniimagenet-adawarpconv32-5way-5shot-8.json",
+        "results/miniimagenet/npbml-ablating-meta-learning-rate/npbml-miniimagenet-adawarpconv32-5way-5shot-9.json",
     ]
 
     # Setting the plot settings.
@@ -38,7 +40,7 @@ def plot_learning_curve():
     plt.rcParams["figure.figsize"] = (4.25, 5)  # (8, 4.5)
 
     # Name of the methods and their respective plotting colors.
-    method_names = ["32 (theta)", "32 (theta, w)", "32 (theta, phi)", "32 (theta, w, phi)"]
+    method_names = ["Cosine 1e-3 -> 1e-5", "Cosine 1e-4 -> 1e5", "MS 1e-3 - [20k 40k] g=0.1", "MS 1e-3 - [10k, 20k, 30k, 40k, 50k] g=0.5", "MS 1e-4 -> [30k] g=0.1", "MS 1e-4 -> [10k, 20k, 30k, 40k, 50k] g=0.7"]
 
     # Iterating over the different methods.
     for path, method in zip(paths, method_names):

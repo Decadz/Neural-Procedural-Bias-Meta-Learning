@@ -76,11 +76,12 @@ def _run_experiment(dataset, model, config, random_state):
 
     # Creating the base model's *meta* optimizer.
     meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
-        base_model.parameters(), **config["meta_optimizer_settings"])
+        list(base_model.meta_parameters()) + list(base_model.warp_parameters()),
+        **config["meta_optimizer_settings"])
 
     # Creating the base model's *base* optimizer.
     base_optimizer = optimizer_archive[config["base_optimizer_name"]](
-        base_model.adapt_parameters(), **config["base_optimizer_settings"])
+        base_model.base_parameters(), **config["base_optimizer_settings"])
 
     # Creating the meta learning rate scheduler.
     meta_scheduler = scheduler_archive[config["meta_scheduler_name"]](

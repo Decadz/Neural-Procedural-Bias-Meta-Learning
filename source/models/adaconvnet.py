@@ -2,116 +2,28 @@ import collections
 import torch
 
 
-class _Conv(torch.nn.Module):
+class _AdaConv(torch.nn.Module):
 
     def __init__(self, input_channels=1, num_filters=32, num_ways=5, **kwargs):
-        super(_Conv, self).__init__()
-
-        self.encoder = torch.nn.Sequential(collections.OrderedDict([
-            ("block1", _FiLMConvBlock(input_channels, num_filters)),
-            ("block2", _FiLMConvBlock(num_filters, num_filters)),
-            ("block3", _FiLMConvBlock(num_filters, num_filters)),
-            ("block4", _FiLMConvBlock(num_filters, num_filters)),
-            ("adaPool", torch.nn.AdaptiveAvgPool2d(1)),
-            ("flatten", torch.nn.Flatten())
-        ]))
-
-        # Creating and initializing the permutation invariant head of the network.
-        self.output_layer = torch.nn.Linear(num_filters, num_ways)  # Placeholder layer.
-        #self.output_cone = torch.nn.Linear(num_filters, 1)   # Classifier weights.
-
-        # Model configuration hyper-parameters.
-        self.input_channels = input_channels
-        self.num_filters = num_filters
-        self.num_ways = num_ways
-
-        # Initializing the model's parameters.
-        self.initialize()
-
-    def forward(self, x, adapt=False):
-
-        # Setting the settings for all the FiLM layers.
-        for name, module in self.encoder.named_children():
-            if isinstance(module, _FiLMConvBlock):
-                module.adapt = adapt
-
-        # Generating the image embeddings using the encoder.
-        x = self.encoder(x)
-
-        # Generating the permutation invariant head by copying output cone into the output layer.
-        #self.output_layer.weight.data = self.output_cone.weight.data.repeat(self.num_ways, 1)
-        #self.output_layer.bias.data = self.output_cone.bias.data.repeat(self.num_ways)
-
-        # Generating the model predictions.
-        return self.output_layer(x)
-
-    def initialize(self):
-        # Initializing the encoder network.
-        for name, module in self.encoder.named_children():
-            if isinstance(module, _FiLMConvBlock):
-                module.initialize()
-
-        # Initializing the head of the network.
-        torch.nn.init.normal_(self.output_layer.weight, 0, 0.01)
-        #torch.nn.init.normal_(self.output_cone.weight, 0, 0.01)
-        self.output_layer.bias.data.zero_()
-        #self.output_cone.bias.data.zero_()
-
-    def reset_batch_norm(self):
-        # Method for resetting the batch norm statistics.
-        for module in self.modules():
-            if hasattr(module, 'reset_running_stats'):
-                module.reset_running_stats()
-
-    def adapt_parameters(self):
-        for param in self.encoder.block1.adapt_parameters():
-            yield param
-        for param in self.encoder.block2.adapt_parameters():
-            yield param
-        for param in self.encoder.block3.adapt_parameters():
-            yield param
-        for param in self.encoder.block4.adapt_parameters():
-            yield param
-        for param in self.output_layer.parameters():
-            yield param
-
-    def film_parameters(self):
-        for param in self.encoder.block1.film_parameters():
-            yield param
-        for param in self.encoder.block2.film_parameters():
-            yield param
-        for param in self.encoder.block3.film_parameters():
-            yield param
-        for param in self.encoder.block4.film_parameters():
-            yield param
-
-    def warp_parameters(self):
-        pass
-
-
-class _WarpConv(torch.nn.Module):
-
-    def __init__(self, input_channels=1, num_filters=32, num_ways=5, **kwargs):
-        super(_WarpConv, self).__init__()
+        super(_AdaConv, self).__init__()
 
         self.encoder = torch.nn.Sequential(collections.OrderedDict([
             ("adapt1", _FiLMConvBlock(input_channels, num_filters)),
-            ("warp1", _FiLMWarpConvBlock(num_filters, num_filters)),
+            ("warp1", _FiLMWarpBlock(num_filters, num_filters)),
             ("adapt2", _FiLMConvBlock(num_filters, num_filters)),
-            ("warp2", _FiLMWarpConvBlock(num_filters, num_filters)),
+            ("warp2", _FiLMWarpBlock(num_filters, num_filters)),
             ("adapt3", _FiLMConvBlock(num_filters, num_filters)),
-            ("warp3", _FiLMWarpConvBlock(num_filters, num_filters)),
+            ("warp3", _FiLMWarpBlock(num_filters, num_filters)),
             ("adapt4", _FiLMConvBlock(num_filters, num_filters)),
-            ("warp4", _FiLMWarpConvBlock(num_filters, num_filters)),
+            ("warp4", _FiLMWarpBlock(num_filters, num_filters)),
             ("adaPool", torch.nn.AdaptiveAvgPool2d(1)),
             ("flatten", torch.nn.Flatten())
         ]))
 
-        # Creating and initializing the permutation invariant head of the network.
-        self.output_layer = torch.nn.Linear(num_filters, num_ways)  # Placeholder layer.
-        self.output_cone = torch.nn.Linear(num_filters, 1)   # Classifier weights.
+        # Creating the permutation invariant head of the network.
+        self.classifier = _PermutationInvariantClassifier(num_filters, num_ways)
 
-        # Model configuration hyper-parameters.
+        # Model configurations and hyper-parameters.
         self.input_channels = input_channels
         self.num_filters = num_filters
         self.num_ways = num_ways
@@ -123,80 +35,38 @@ class _WarpConv(torch.nn.Module):
 
         # Setting the settings for all the FiLM layers.
         for name, module in self.encoder.named_children():
-            if isinstance(module, _FiLMConvBlock):
+            if isinstance(module, (_FiLMConvBlock, _FiLMWarpBlock, _PermutationInvariantClassifier)):
                 module.adapt = adapt
 
         # Generating the image embeddings using the encoder.
         x = self.encoder(x)
 
-        #"""
-        if adapt:
-            # Generating the permutation invariant head by copying output cone into the output layer.
-            self.output_layer.weight.data = self.output_cone.weight.data.repeat(self.num_ways, 1)
-            self.output_layer.bias.data = self.output_cone.bias.data.repeat(self.num_ways)
-        #"""
-
         # Generating the model predictions.
-        return self.output_layer(x)
+        return self.classifier(x)
 
     def initialize(self):
-        # Initializing the encoder network.
+        # Initializing the networks parameters.
         for name, module in self.encoder.named_children():
-            if isinstance(module, _FiLMConvBlock) or isinstance(module, _FiLMWarpConvBlock):
+            if isinstance(module, (_FiLMConvBlock, _FiLMWarpBlock, _PermutationInvariantClassifier)):
                 module.initialize()
-
-        # Initializing the head of the network.
-        torch.nn.init.normal_(self.output_layer.weight, 0, 0.01)
-        torch.nn.init.normal_(self.output_cone.weight, 0, 0.01)
-        self.output_layer.bias.data.zero_()
-        self.output_cone.bias.data.zero_()
 
     def reset_batch_norm(self):
         # Method for resetting the batch norm statistics.
         for module in self.modules():
-            if hasattr(module, 'reset_running_stats'):
+            if hasattr(module, "reset_running_stats"):
                 module.reset_running_stats()
 
-    def adapt_parameters(self):
-        for param in self.encoder.adapt1.adapt_parameters():
-            yield param
-        for param in self.encoder.adapt2.adapt_parameters():
-            yield param
-        for param in self.encoder.adapt3.adapt_parameters():
-            yield param
-        for param in self.encoder.adapt4.adapt_parameters():
-            yield param
-        for param in self.output_layer.parameters():
-            yield param
+    def meta_parameters(self):
+        for module in self.encoder.children():
+            if hasattr(module, "meta_parameters"):
+                yield from module.meta_parameters()
+        yield from self.classifier.meta_parameters()
 
-    def film_parameters(self):
-        for param in self.encoder.adapt1.film_parameters():
-            yield param
-        for param in self.encoder.adapt2.film_parameters():
-            yield param
-        for param in self.encoder.adapt3.film_parameters():
-            yield param
-        for param in self.encoder.adapt4.film_parameters():
-            yield param
-        for param in self.encoder.warp1.film_parameters():
-            yield param
-        for param in self.encoder.warp2.film_parameters():
-            yield param
-        for param in self.encoder.warp3.film_parameters():
-            yield param
-        for param in self.encoder.warp4.film_parameters():
-            yield param
-
-    def warp_parameters(self):
-        for param in self.encoder.warp1.warp_parameters():
-            yield param
-        for param in self.encoder.warp2.warp_parameters():
-            yield param
-        for param in self.encoder.warp3.warp_parameters():
-            yield param
-        for param in self.encoder.warp4.warp_parameters():
-            yield param
-
+    def base_parameters(self):
+        for module in self.encoder.children():
+            if hasattr(module, "base_parameters"):
+                yield from module.base_parameters()
+        yield from self.classifier.base_parameters()
 
 # ============================================================
 # Network block definitions.
@@ -233,7 +103,7 @@ class _FiLMConvBlock(torch.nn.Module):
     def forward(self, x):
         # Computing a forward pass on the convolutional layer.
         z = self.bn(self.conv(x))
-        """
+
         # Computing feature wise linear modulation layer.
         if self.adapt is True:
             # Computing the average value for each channel in the volume.
@@ -245,11 +115,6 @@ class _FiLMConvBlock(torch.nn.Module):
         # Expanding tensor back into the correct dimension size.
         gamma = self.gamma[None, :, None, None].expand_as(z)
         beta = self.beta[None, :, None, None].expand_as(z)
-        """
-        avg_channel = torch.nn.functional.adaptive_avg_pool2d(x, (1, 1))
-        gamma, beta = self.film(avg_channel.squeeze()).mean(dim=0).chunk(2)
-        gamma = gamma[None, :, None, None].expand_as(z)
-        beta = beta[None, :, None, None].expand_as(z)
 
         return self.pool(self.relu((1 + gamma) * z + beta))
 
@@ -259,29 +124,27 @@ class _FiLMConvBlock(torch.nn.Module):
         self.bn.weight.data.fill_(1)
         self.bn.bias.data.zero_()
 
-    def adapt_parameters(self):
-        return self.conv.parameters()
+    def meta_parameters(self):
+        yield from self.conv.parameters()
+        yield from self.film.parameters()
 
-    def film_parameters(self):
-        return self.film.parameters()
+    def base_parameters(self):
+        yield from self.conv.parameters()
 
 
-class _FiLMWarpConvBlock(torch.nn.Module):
+class _FiLMWarpBlock(torch.nn.Module):
 
     def __init__(self, in_channels, out_channels):
-        super(_FiLMWarpConvBlock, self).__init__()
+        super(_FiLMWarpBlock, self).__init__()
 
         # The underlying convolutional layer (as implemented in PyTorch).
         self.conv = torch.nn.Conv2d(in_channels, out_channels, 3, padding=1, bias=False)
 
         # Batch normalization layer to reduce internal covariance shift.
-        #self.bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
+        self.bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
 
         # The feature wise linear modulation (FiLM) layer for making the layer adaptive.
         self.film = torch.nn.Linear(in_channels, out_channels * 2)
-
-        # The non-linear activation function.
-        #self.relu = torch.nn.ReLU(inplace=True)
 
         # The multiplicative (gamma) and additive (beta) linear transformation values.
         self.register_buffer("gamma", torch.zeros(out_channels, requires_grad=False))
@@ -292,8 +155,7 @@ class _FiLMWarpConvBlock(torch.nn.Module):
 
     def forward(self, x):
         # Computing a forward pass on the convolutional layer.
-        #z = self.bn(self.conv(x))
-        z = self.conv(x)
+        z = self.bn(self.conv(x))
 
         # Computing feature wise linear modulation layer.
         if self.adapt is True:
@@ -307,20 +169,52 @@ class _FiLMWarpConvBlock(torch.nn.Module):
         gamma = self.gamma[None, :, None, None].expand_as(z)
         beta = self.beta[None, :, None, None].expand_as(z)
 
-        #return self.relu((1 + gamma) * z + beta)
         return (1 + gamma) * z + beta
 
     def initialize(self):
         torch.nn.init.dirac_(self.conv.weight)
         torch.nn.init.normal_(self.film.weight, 0, 0.01)
-        #self.bn.weight.data.fill_(1)
-        #self.bn.bias.data.zero_()
+        self.bn.weight.data.fill_(1)
+        self.bn.bias.data.zero_()
 
-    def warp_parameters(self):
-        return self.conv.parameters()
+    def meta_parameters(self):
+        yield from self.conv.parameters()
+        yield from self.film.parameters()
 
-    def film_parameters(self):
-        return self.film.parameters()
+
+class _PermutationInvariantClassifier(torch.nn.Module):
+
+    def __init__(self, in_features, out_features):
+        super(_PermutationInvariantClassifier, self).__init__()
+
+        # Creating and initializing the permutation invariant head of the network.
+        self.output_layer = torch.nn.Linear(in_features, out_features)  # Placeholder layer.
+        self.output_cone = torch.nn.Linear(in_features, 1)  # Classifier weights.
+
+        # Field for controlling the current state of the layer.
+        self.adapt = False
+
+    def forward(self, x):
+
+        # Generating the permutation invariant head by copying output cone into the output layer.
+        if self.adapt:  # Copying the cone into each classes output classifier.
+            self.output_layer.weight.data = self.output_cone.weight.data.repeat(self.num_ways, 1)
+            self.output_layer.bias.data = self.output_cone.bias.data.repeat(self.num_ways)
+
+        # Computing a forward pass on the linear classifier layer.
+        return self.output_layer(x)
+
+    def initialize(self):
+        torch.nn.init.normal_(self.output_layer.weight, 0, 0.01)
+        torch.nn.init.normal_(self.output_cone.weight, 0, 0.01)
+        self.output_layer.bias.data.zero_()
+        self.output_cone.bias.data.zero_()
+
+    def meta_parameters(self):
+        yield from self.output_cone.parameters()
+
+    def base_parameters(self):
+        yield from self.output_layer.parameters()
 
 
 # ============================================================
@@ -328,49 +222,25 @@ class _FiLMWarpConvBlock(torch.nn.Module):
 # ============================================================
 
 
-class AdaConv32(_Conv):
+class AdaConv32(_AdaConv):
 
     def __init__(self, **kwargs):
         super(AdaConv32, self).__init__(num_filters=32, **kwargs)
 
 
-class AdaConv48(_Conv):
+class AdaConv48(_AdaConv):
 
     def __init__(self, **kwargs):
         super(AdaConv48, self).__init__(num_filters=48, **kwargs)
 
 
-class AdaConv64(_Conv):
+class AdaConv64(_AdaConv):
 
     def __init__(self, **kwargs):
         super(AdaConv64, self).__init__(num_filters=64, **kwargs)
 
 
-class AdaConv128(_Conv):
+class AdaConv128(_AdaConv):
 
     def __init__(self, **kwargs):
         super(AdaConv128, self).__init__(num_filters=128, **kwargs)
-
-
-class AdaWarpConv32(_WarpConv):
-
-    def __init__(self, **kwargs):
-        super(AdaWarpConv32, self).__init__(num_filters=32, **kwargs)
-
-
-class AdaWarpConv48(_WarpConv):
-
-    def __init__(self, **kwargs):
-        super(AdaWarpConv48, self).__init__(num_filters=48, **kwargs)
-
-
-class AdaWarpConv64(_WarpConv):
-
-    def __init__(self, **kwargs):
-        super(AdaWarpConv64, self).__init__(num_filters=64, **kwargs)
-
-
-class AdaWarpConv128(_WarpConv):
-
-    def __init__(self, **kwargs):
-        super(AdaWarpConv128, self).__init__(num_filters=128, **kwargs)

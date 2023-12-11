@@ -65,7 +65,7 @@ def _run_experiment(dataset, model, config, random_state):
     # If using a Conv4 base model train using Adam.
     if "conv" in args.model:
         pretrain_optimizer = torch.optim.Adam(
-            base_model.adapt_parameters(), lr=0.001, weight_decay=0.0005)
+            base_model.base_parameters(), lr=0.001, weight_decay=0.0005)
 
         pretrain_scheduler = torch.optim.lr_scheduler.MultiStepLR(
             pretrain_optimizer, milestones=[40000, 60000, 80000, 100000], gamma=0.1)
@@ -73,7 +73,7 @@ def _run_experiment(dataset, model, config, random_state):
     # If using a ResNet base model train using SGD.
     elif "resnet" in args.model:
         pretrain_optimizer = torch.optim.SGD(
-            base_model.adapt_parameters(), lr=0.1, momentum=0.9, nesterov=True, weight_decay=0.0005)
+            base_model.base_parameters(), lr=0.1, momentum=0.9, nesterov=True, weight_decay=0.0005)
 
         pretrain_scheduler = torch.optim.lr_scheduler.MultiStepLR(
             pretrain_optimizer, milestones=[80000, 100000, 110000, 120000], gamma=0.1)
@@ -98,11 +98,8 @@ def _run_experiment(dataset, model, config, random_state):
     old_output_layer = list(base_model.modules())[-1]
 
     # Create a new dense/linear layer and replacing the last layer with the new layer.
-    base_model.output_layer = torch.nn.Linear(old_output_layer.in_features, config["num_ways"]).to(device)
-    
-    # Initializing the head of the network.
-    torch.nn.init.normal_(base_model.output_layer.weight, 0, 0.01)
-    base_model.output_layer.bias.data.zero_()
+    base_model.classifier.output_layer = torch.nn.Linear(
+        old_output_layer.in_features, config["num_ways"]).to(device)
 
     # Saving the pretrained model.
     pretrained_directory = "source/models/pretrained/" + args.dataset + "/"

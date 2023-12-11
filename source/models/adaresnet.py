@@ -1,0 +1,271 @@
+import collections
+import torch
+
+
+class _AdaResNet(torch.nn.Module):
+
+    def __init__(self, block_config, input_channels=3, num_ways=5, **kwargs):
+        super(_AdaResNet, self).__init__()
+
+        self.encoder = torch.nn.Sequential(collections.OrderedDict([
+            ("adapt1", _FiLMConvBlock(input_channels, block_config[0])),
+            ("warp1", _FiLMWarpBlock(block_config[0], block_config[0])),
+            ("adapt2", _FiLMConvBlock(block_config[0], block_config[1])),
+            ("warp2", _FiLMWarpBlock(block_config[1], block_config[1])),
+            ("adapt3", _FiLMConvBlock(block_config[1], block_config[2])),
+            ("warp3", _FiLMWarpBlock(block_config[2], block_config[2])),
+            ("adapt4", _FiLMConvBlock(block_config[2], block_config[3])),
+            ("warp4", _FiLMWarpBlock(block_config[3], block_config[3])),
+            ("adaPool", torch.nn.AdaptiveAvgPool2d(1)),
+            ("flatten", torch.nn.Flatten())
+        ]))
+
+        # Creating the permutation invariant head of the network.
+        self.classifier = _PermutationInvariantClassifier(block_config[-1], num_ways)
+
+        # Model configurations and hyper-parameters.
+        self.input_channels = input_channels
+        self.block_config = block_config
+        self.num_ways = num_ways
+
+        # Initializing the model's parameters.
+        self.initialize()
+
+    def forward(self, x):
+        x = self.encoder(x)
+        return self.classifier(x)
+
+    def initialize(self):
+        # Initializing the networks parameters.
+        for name, module in self.encoder.named_children():
+            if isinstance(module, (_FiLMConvBlock, _FiLMWarpBlock, _PermutationInvariantClassifier)):
+                module.initialize()
+
+    def reset_batch_norm(self):
+        # Function for resetting the batch norm statistics.
+        for m in self.modules():
+            if hasattr(m, "reset_running_stats"):
+                m.reset_running_stats()
+
+    def meta_parameters(self):
+        for module in self.encoder.children():
+            if hasattr(module, "meta_parameters"):
+                yield from module.meta_parameters()
+        yield from self.classifier.meta_parameters()
+
+    def base_parameters(self):
+        for module in self.encoder.children():
+            if hasattr(module, "base_parameters"):
+                yield from module.base_parameters()
+        yield from self.classifier.base_parameters()
+
+# ============================================================
+# Network block definitions.
+# ============================================================
+
+
+class _FiLMConvBlock(torch.nn.Module):
+
+    def __init__(self, in_channels, out_channels):
+        super(_FiLMConvBlock, self).__init__()
+
+        # The convolutional feature extractor block, containing three filmed conv -> bn.
+        self.block = torch.nn.Sequential(collections.OrderedDict([
+            ("adapt1", _FiLMConv(in_channels, out_channels)),
+            ("relu1", torch.nn.ReLU(inplace=True)),
+            ("adapt2", _FiLMConv(out_channels, out_channels)),
+            ("relu2", torch.nn.ReLU(inplace=True)),
+            ("adapt3", _FiLMConv(out_channels, out_channels)),
+        ]))
+
+        # Residual (skip) connections. Cant been in sequential block since it runs in parallel.
+        self.res_conv = torch.nn.Conv2d(in_channels, out_channels, 1, 1, padding=0)
+        self.res_bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
+        self.res_relu = torch.nn.ReLU(inplace=True)
+        self.res_pool = torch.nn.MaxPool2d(2)
+
+        # Block configurations and hyper-parameters.
+        self.in_planes = in_channels
+        self.planes = out_channels
+
+    def forward(self, x):
+        out = self.block(x)
+        res = self.res_bn(self.res_conv(x))
+        return self.res_pool(self.res_relu(out + res))
+
+    def initialize(self):
+        # Initializing the sequential block.
+        for name, module in self.block.named_children():
+            if isinstance(module, _FiLMConv):
+                module.initialize()
+
+        torch.nn.init.normal_(self.res_conv.weight, 0, 0.01)
+        self.res_bn.weight.data.fill_(1)
+        self.res_bn.bias.data.zero_()
+
+    def meta_parameters(self):
+        for module in self.block.children():
+            if hasattr(module, "meta_parameters"):
+                yield from module.meta_parameters()
+        yield from self.res_conv.parameters()
+
+    def base_parameters(self):
+        for module in self.block.children():
+            if hasattr(module, "base_parameters"):
+                yield from module.base_parameters()
+        yield from self.res_conv.parameters()
+
+
+class _FiLMConv(torch.nn.Module):
+
+    def __init__(self, in_channels, out_channels):
+        super(_FiLMConv, self).__init__()
+
+        # The underlying convolutional layer (as implemented in PyTorch).
+        self.conv = torch.nn.Conv2d(in_channels, out_channels, 3, padding=1, bias=False)
+
+        # Batch normalization layer to reduce internal covariance shift.
+        self.bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
+
+        # The feature wise linear modulation (FiLM) layer for making the layer adaptive.
+        self.film = torch.nn.Linear(in_channels, out_channels * 2)
+
+        # The multiplicative (gamma) and additive (beta) linear transformation values.
+        self.register_buffer("gamma", torch.zeros(out_channels, requires_grad=False))
+        self.register_buffer("beta", torch.zeros(out_channels, requires_grad=False))
+
+        # Field for controlling the current state of the layer.
+        self.adapt = False
+
+    def forward(self, x):
+        # Computing a forward pass on the convolutional layer.
+        z = self.bn(self.conv(x))
+
+        # Computing feature wise linear modulation layer.
+        if self.adapt is True:
+            # Computing the average value for each channel in the volume.
+            avg_channel = torch.nn.functional.adaptive_avg_pool2d(x, (1, 1))
+
+            # Computing the gamma and beta weights and mean reducing in the batch dimension.
+            self.gamma, self.beta = self.film(avg_channel.squeeze()).mean(dim=0).chunk(2)
+
+        # Expanding tensor back into the correct dimension size.
+        gamma = self.gamma[None, :, None, None].expand_as(z)
+        beta = self.beta[None, :, None, None].expand_as(z)
+
+        return (1 + gamma) * z + beta
+
+    def initialize(self):
+        torch.nn.init.normal_(self.conv.weight, 0, 0.01)
+        torch.nn.init.normal_(self.film.weight, 0, 0.01)
+        self.bn.weight.data.fill_(1)
+        self.bn.bias.data.zero_()
+
+    def meta_parameters(self):
+        yield from self.conv.parameters()
+        yield from self.film.parameters()
+
+    def base_parameters(self):
+        yield from self.conv.parameters()
+
+
+class _FiLMWarpBlock(torch.nn.Module):
+
+    def __init__(self, in_channels, out_channels):
+        super(_FiLMWarpBlock, self).__init__()
+
+        # The underlying convolutional layer (as implemented in PyTorch).
+        self.conv = torch.nn.Conv2d(in_channels, out_channels, 3, padding=1, bias=False)
+
+        # Batch normalization layer to reduce internal covariance shift.
+        self.bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
+
+        # The feature wise linear modulation (FiLM) layer for making the layer adaptive.
+        self.film = torch.nn.Linear(in_channels, out_channels * 2)
+
+        # The multiplicative (gamma) and additive (beta) linear transformation values.
+        self.register_buffer("gamma", torch.zeros(out_channels, requires_grad=False))
+        self.register_buffer("beta", torch.zeros(out_channels, requires_grad=False))
+
+        # Field for controlling the current state of the layer.
+        self.adapt = False
+
+    def forward(self, x):
+        # Computing a forward pass on the convolutional layer.
+        z = self.bn(self.conv(x))
+
+        # Computing feature wise linear modulation layer.
+        if self.adapt is True:
+            # Computing the average value for each channel in the volume.
+            avg_channel = torch.nn.functional.adaptive_avg_pool2d(x, (1, 1))
+
+            # Computing the gamma and beta weights and mean reducing in the batch dimension.
+            self.gamma, self.beta = self.film(avg_channel.squeeze()).mean(dim=0).chunk(2)
+
+        # Expanding tensor back into the correct dimension size.
+        gamma = self.gamma[None, :, None, None].expand_as(z)
+        beta = self.beta[None, :, None, None].expand_as(z)
+
+        return (1 + gamma) * z + beta
+
+    def initialize(self):
+        torch.nn.init.dirac_(self.conv.weight)
+        torch.nn.init.normal_(self.film.weight, 0, 0.01)
+        self.bn.weight.data.fill_(1)
+        self.bn.bias.data.zero_()
+
+    def meta_parameters(self):
+        yield from self.conv.parameters()
+        yield from self.film.parameters()
+
+
+class _PermutationInvariantClassifier(torch.nn.Module):
+
+    def __init__(self, in_features, out_features):
+        super(_PermutationInvariantClassifier, self).__init__()
+
+        # Creating and initializing the permutation invariant head of the network.
+        self.output_layer = torch.nn.Linear(in_features, out_features)  # Placeholder layer.
+        self.output_cone = torch.nn.Linear(in_features, 1)  # Classifier weights.
+
+        # Field for controlling the current state of the layer.
+        self.adapt = False
+
+    def forward(self, x):
+
+        # Generating the permutation invariant head by copying output cone into the output layer.
+        if self.adapt:  # Copying the cone into each classes output classifier.
+            self.output_layer.weight.data = self.output_cone.weight.data.repeat(self.num_ways, 1)
+            self.output_layer.bias.data = self.output_cone.bias.data.repeat(self.num_ways)
+
+        # Computing a forward pass on the linear classifier layer.
+        return self.output_layer(x)
+
+    def initialize(self):
+        torch.nn.init.normal_(self.output_layer.weight, 0, 0.01)
+        torch.nn.init.normal_(self.output_cone.weight, 0, 0.01)
+        self.output_layer.bias.data.zero_()
+        self.output_cone.bias.data.zero_()
+
+    def meta_parameters(self):
+        yield from self.output_cone.parameters()
+
+    def base_parameters(self):
+        yield from self.output_layer.parameters()
+
+
+# ============================================================
+# Model Variants.
+# ============================================================
+
+
+class AdaResNet(_AdaResNet):
+
+    def __init__(self, **kwargs):
+        super(AdaResNet, self).__init__(block_config=[64, 128, 256, 512], **kwargs)
+
+
+class WideAdaResNet(_AdaResNet):
+
+    def __init__(self, **kwargs):
+        super(WideAdaResNet, self).__init__(block_config=[64, 160, 320, 640], **kwargs)

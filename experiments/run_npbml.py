@@ -81,89 +81,13 @@ def _run_experiment(dataset, model, config, random_state):
         num_ways=config["num_ways"], task_loss_fn=objective_archive[config["meta_loss_fn"]],
     ).to(device)
 
-    # TODO - Normal Head. Meta Learning Theta. NEED TO Comment out cone sync in AdaConv
-    #"""
     meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
-       list(base_model.encoder.adapt1.parameters()) +
-       list(base_model.encoder.adapt2.parameters()) +
-       list(base_model.encoder.adapt3.parameters()) +
-       list(base_model.encoder.adapt4.parameters()) +
-       list(base_model.output_layer.parameters()),
+       list(base_model.meta_parameters()) + list(learned_loss.meta_parameters()),
        **config["meta_optimizer_settings"])
-    #"""
-
-    # TODO - Normal Head. Meta Learning Theta and phi. NEED TO Comment out cone sync in AdaConv
-    """
-    meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
-       list(base_model.encoder.adapt1.parameters()) +
-       list(base_model.encoder.adapt2.parameters()) +
-       list(base_model.encoder.adapt3.parameters()) +
-       list(base_model.encoder.adapt4.parameters()) +
-       list(base_model.output_layer.parameters()) + 
-       list(learned_loss.parameters()),
-       **config["meta_optimizer_settings"])
-    """
-
-    # TODO - Normal Head. Meta Learning Theta and w.  NEED TO Comment out cone sync in AdaConv
-    """
-    meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
-        list(base_model.encoder.parameters()) + 
-        list(base_model.output_layer.parameters()),
-        **config["meta_optimizer_settings"])
-    """
-
-    # TODO - Normal Head. Meta Learning Theta, w, and phi.  NEED TO Comment out cone sync in AdaConv
-    """
-    meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
-       list(base_model.encoder.parameters()) + 
-       list(base_model.output_layer.parameters()) + 
-       list(learned_loss.parameters()),
-       **config["meta_optimizer_settings"])
-    """
-
-    # TODO - Permutation Invariant Head. Meta Learning Theta.
-    """
-    meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
-       list(base_model.encoder.adapt1.parameters()) +
-       list(base_model.encoder.adapt2.parameters()) +
-       list(base_model.encoder.adapt3.parameters()) +
-       list(base_model.encoder.adapt4.parameters()) +
-       list(base_model.output_cone.parameters()),
-       **config["meta_optimizer_settings"])
-    """
-
-    # TODO - Permutation Invariant Head. Meta Learning Theta and phi.
-    """
-    meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
-       list(base_model.encoder.adapt1.parameters()) +
-       list(base_model.encoder.adapt2.parameters()) +
-       list(base_model.encoder.adapt3.parameters()) +
-       list(base_model.encoder.adapt4.parameters()) +
-       list(base_model.output_cone.parameters()) + 
-       list(learned_loss.parameters()),
-       **config["meta_optimizer_settings"])
-    """
-
-    # TODO - Permutation Invariant Head. Meta Learning Theta and w.
-    """
-    meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
-        list(base_model.encoder.parameters()) + 
-        list(base_model.output_cone.parameters()),
-        **config["meta_optimizer_settings"])
-    """
-
-    # TODO - Permutation Invariant Head. Meta Learning Theta, w, and phi.
-    """
-    meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
-       list(base_model.encoder.parameters()) + 
-       list(base_model.output_cone.parameters()) + 
-       list(learned_loss.parameters()),
-       **config["meta_optimizer_settings"])
-    """
 
     # Creating the base model's *base* optimizer.
     base_optimizer = optimizer_archive[config["base_optimizer_name"]](
-        base_model.adapt_parameters(), **config["base_optimizer_settings"])
+        base_model.base_parameters(), **config["base_optimizer_settings"])
 
     # Creating the *function* for the bootstrapped optimizer.
     base_bootstrapped_optimizer = functools.partial(

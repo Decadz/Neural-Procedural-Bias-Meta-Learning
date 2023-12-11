@@ -31,7 +31,7 @@ def pretrain(model, optimizer, scheduler, training, validation, num_ways, num_sh
         training = torch.utils.data.DataLoader(training.dataset, batch_size=batch_size, shuffle=True)
 
     # Objects for keeping track of the learning history.
-    checkpointer = _StateCheckpointer(validation, num_ways, num_shots, performance_metric)
+    checkpointer = _StateCheckpointer(validation, num_ways, num_shots, performance_metric, verbose)
 
     # A list for keeping track of the fine-tuning training accuracy.
     fine_tuning_history = []
@@ -39,7 +39,7 @@ def pretrain(model, optimizer, scheduler, training, validation, num_ways, num_sh
     # Looping until the maximum number of gradient steps is reached.
     for step in (training_progress := tqdm.tqdm(
             range(gradient_steps), position=0, dynamic_ncols=True,
-            disable=False if verbose >= 1 else True, leave=False)):
+            disable=True if verbose == 0 else False, leave=False)):
 
         # Clearing the gradient cache.
         optimizer.zero_grad()
@@ -80,7 +80,7 @@ def pretrain(model, optimizer, scheduler, training, validation, num_ways, num_sh
 class _StateCheckpointer(torch.nn.Module):
 
     def __init__(self, dataset, num_ways, num_shots, performance_metric,
-                 test_tasks=600, frequency=500, **kwargs):
+                 verbose, test_tasks=600, frequency=500, **kwargs):
 
         super(_StateCheckpointer, self).__init__()
 
@@ -93,6 +93,7 @@ class _StateCheckpointer(torch.nn.Module):
         self.performance_metric = performance_metric
         self.test_tasks = test_tasks
         self.frequency = frequency
+        self.verbose = verbose
 
         # Tracking the best base model so far.
         self.best_performance = None
@@ -109,7 +110,8 @@ class _StateCheckpointer(torch.nn.Module):
             # List for keeping track of the learning history.
             performance_history = []
 
-            for _ in range(self.test_tasks):
+            for _ in (tqdm.tqdm(range(self.test_tasks), position=1, dynamic_ncols=True, desc="Validating Performance",
+                                disable=True if self.verbose <= 1 else False, leave=False)):
 
                 # Sampling a batch of support and query instances.
                 X_support, y_support, X_query, y_query = next(self.dataset)
