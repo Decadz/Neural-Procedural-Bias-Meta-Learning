@@ -101,6 +101,10 @@ def _run_experiment(dataset, model, config, random_state):
     base_model.classifier.output_layer = torch.nn.Linear(
         old_output_layer.in_features, config["num_ways"]).to(device)
 
+    # Initializing the head of the network.
+    torch.nn.init.normal_(base_model.classifier.output_layer.weight, 0, 0.01)
+    base_model.classifier.output_layer.bias.data.zero_()
+
     # Saving the pretrained model.
     pretrained_directory = "source/models/pretrained/" + args.dataset + "/"
     export_model(base_model, pretrained_directory, args.dataset + "-" + args.model +

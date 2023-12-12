@@ -12,7 +12,7 @@ meta_optimizer_settings:
 meta_scheduler_name: "cosine"
 meta_scheduler_settings:
   T_max: 60000
-  eta_min: 0.001
+  eta_min: 0.00001
 
 # Base Optimization used in Meta-Training.
 base_gradient_steps: 5

@@ -25,12 +25,10 @@ def plot_learning_curve():
         #"results/miniimagenet/npbml-miniimagenet-adaconv48-5way-5shot-0.json",
         #"results/miniimagenet/npbml-miniimagenet-adaconv64-5way-5shot-0.json",
         #"results/miniimagenet/npbml-miniimagenet-adaconv128-5way-5shot-0.json"
-        "results/miniimagenet/npbml-ablating-meta-learning-rate/npbml-miniimagenet-adawarpconv32-5way-5shot-4.json",
-        "results/miniimagenet/npbml-ablating-meta-learning-rate/npbml-miniimagenet-adawarpconv32-5way-5shot-5.json",
-        "results/miniimagenet/npbml-ablating-meta-learning-rate/npbml-miniimagenet-adawarpconv32-5way-5shot-6.json",
-        "results/miniimagenet/npbml-ablating-meta-learning-rate/npbml-miniimagenet-adawarpconv32-5way-5shot-7.json",
-        "results/miniimagenet/npbml-ablating-meta-learning-rate/npbml-miniimagenet-adawarpconv32-5way-5shot-8.json",
-        "results/miniimagenet/npbml-ablating-meta-learning-rate/npbml-miniimagenet-adawarpconv32-5way-5shot-9.json",
+        "results/miniimagenet/npbml-miniimagenet-adawarpconv128-5way-5shot-100.json",
+        "results/miniimagenet/npbml-miniimagenet-adawarpconv128-5way-5shot-101.json",
+        "results/miniimagenet/npbml-miniimagenet-adawarpconv128-5way-5shot-102.json",
+        "results/miniimagenet/npbml-miniimagenet-adawarpconv128-5way-5shot-103.json",
     ]
 
     # Setting the plot settings.
@@ -40,7 +38,7 @@ def plot_learning_curve():
     plt.rcParams["figure.figsize"] = (4.25, 5)  # (8, 4.5)
 
     # Name of the methods and their respective plotting colors.
-    method_names = ["Cosine 1e-3 -> 1e-5", "Cosine 1e-4 -> 1e5", "MS 1e-3 - [20k 40k] g=0.1", "MS 1e-3 - [10k, 20k, 30k, 40k, 50k] g=0.5", "MS 1e-4 -> [30k] g=0.1", "MS 1e-4 -> [10k, 20k, 30k, 40k, 50k] g=0.7"]
+    method_names = ["CA(1e-4, 1e-5)", "CA(1e-4, 1e-5)", "FixedLR(1e-05)", "FixedLR(5e-05)"]
 
     # Iterating over the different methods.
     for path, method in zip(paths, method_names):
@@ -69,10 +67,10 @@ def plot_pretraining_learning_curve():
         "results/miniimagenet/pretraining-miniimagenet-adaconv48-5way.json",
         "results/miniimagenet/pretraining-miniimagenet-adaconv64-5way.json",
         "results/miniimagenet/pretraining-miniimagenet-adaconv128-5way.json",
-        "results/miniimagenet/pretraining-miniimagenet-adawarpconv32-5way.json",
-        "results/miniimagenet/pretraining-miniimagenet-adawarpconv48-5way.json",
-        "results/miniimagenet/pretraining-miniimagenet-adawarpconv64-5way.json",
-        "results/miniimagenet/pretraining-miniimagenet-adawarpconv128-5way.json",
+        "results/miniimagenet/pretraining-old/pretraining-miniimagenet-adawarpconv32-5way.json",
+        "results/miniimagenet/pretraining-old/pretraining-miniimagenet-adawarpconv48-5way.json",
+        "results/miniimagenet/pretraining-old/pretraining-miniimagenet-adawarpconv64-5way.json",
+        "results/miniimagenet/pretraining-old/pretraining-miniimagenet-adawarpconv128-5way.json",
 
     ]
 

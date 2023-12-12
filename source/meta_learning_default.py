@@ -11,7 +11,7 @@ def meta_training_default(base_model, meta_optimizer, base_optimizer, meta_sched
 
     # Objects for keeping track of the learning history.
     checkpointer = _StateCheckpointerDefault(
-        base_optimizer, validation, base_gradient_steps, meta_gradient_steps, performance_metric
+        base_optimizer, validation, base_gradient_steps, meta_gradient_steps, performance_metric, verbose
     )
 
     # Performing the meta-training phase using unrolled differentiation to update meta parameters.
@@ -74,7 +74,7 @@ def meta_testing_default(base_model, base_optimizer, dataset, base_gradient_step
     performance_history = []
 
     for _ in (tqdm.tqdm(range(test_tasks), position=1, dynamic_ncols=True, desc="Validating Performance",
-                        disable=True if verbose >= 1 else False, leave=False)):
+                        disable=True if verbose <= 1 else False, leave=False)):
 
         # Sampling a batch of support and query instances.
         X_support, y_support, X_query, y_query = next(dataset)
@@ -111,7 +111,7 @@ def meta_testing_default(base_model, base_optimizer, dataset, base_gradient_step
 class _StateCheckpointerDefault(torch.nn.Module):
 
     def __init__(self, base_optimizer, dataset, base_gradient_steps, meta_gradient_steps,
-                 performance_metric, test_tasks=600, frequency=500, **kwargs):
+                 performance_metric, verbose, test_tasks=600, frequency=500, **kwargs):
         super(_StateCheckpointerDefault, self).__init__()
 
         # Settings used for the checkpointing.
@@ -121,6 +121,7 @@ class _StateCheckpointerDefault(torch.nn.Module):
         self.base_optimizer = base_optimizer
         self.test_tasks = test_tasks
         self.frequency = frequency
+        self.verbose = verbose
         self.dataset = dataset
 
         # Tracking the best base model so far.
@@ -138,7 +139,7 @@ class _StateCheckpointerDefault(torch.nn.Module):
             # Performing the meta-validation stage.
             performance, _ = meta_testing_default(
                 base_model, self.base_optimizer, self.dataset, self.base_gradient_steps,
-                loss_function, self.performance_metric, self.test_tasks, 0
+                loss_function, self.performance_metric, self.test_tasks, self.verbose
             )
 
             # If this is the best model so far then cache the model.

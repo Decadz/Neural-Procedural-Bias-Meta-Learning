@@ -31,14 +31,25 @@ class _AdaResNet(torch.nn.Module):
         # Initializing the model's parameters.
         self.initialize()
 
-    def forward(self, x):
+    def forward(self, x, adapt=False):
+
+        # Setting the adapt settings for all the layers.
+        self.classifier.adapt = adapt
+        for name, module in self.encoder.named_children():
+            if isinstance(module, (_FiLMConvBlock, _FiLMWarpBlock)):
+                module.adapt = adapt
+
+        # Generating the image embeddings using the encoder.
         x = self.encoder(x)
+
+        # Generating the model predictions.
         return self.classifier(x)
 
     def initialize(self):
         # Initializing the networks parameters.
+        self.classifier.initialize()
         for name, module in self.encoder.named_children():
-            if isinstance(module, (_FiLMConvBlock, _FiLMWarpBlock, _PermutationInvariantClassifier)):
+            if isinstance(module, (_FiLMConvBlock, _FiLMWarpBlock)):
                 module.initialize()
 
     def reset_batch_norm(self):
@@ -228,6 +239,10 @@ class _PermutationInvariantClassifier(torch.nn.Module):
         self.output_layer = torch.nn.Linear(in_features, out_features)  # Placeholder layer.
         self.output_cone = torch.nn.Linear(in_features, 1)  # Classifier weights.
 
+        # Recording the number of input and output features in the classifier.
+        self.in_features = in_features
+        self.out_features = out_features
+
         # Field for controlling the current state of the layer.
         self.adapt = False
 
@@ -235,8 +250,8 @@ class _PermutationInvariantClassifier(torch.nn.Module):
 
         # Generating the permutation invariant head by copying output cone into the output layer.
         if self.adapt:  # Copying the cone into each classes output classifier.
-            self.output_layer.weight.data = self.output_cone.weight.data.repeat(self.num_ways, 1)
-            self.output_layer.bias.data = self.output_cone.bias.data.repeat(self.num_ways)
+            self.output_layer.weight.data = self.output_cone.weight.data.repeat(self.out_features, 1)
+            self.output_layer.bias.data = self.output_cone.bias.data.repeat(self.out_features)
 
         # Computing a forward pass on the linear classifier layer.
         return self.output_layer(x)

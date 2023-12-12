@@ -36,8 +36,9 @@ class _ResNet(torch.nn.Module):
 
     def initialize(self):
         # Initializing the networks parameters.
+        self.classifier.initialize()
         for name, module in self.encoder.named_children():
-            if isinstance(module, (_ConvBlock, _WarpBlock, _Classifier)):
+            if isinstance(module, (_ConvBlock, _WarpBlock)):
                 module.initialize()
 
     def reset_batch_norm(self):

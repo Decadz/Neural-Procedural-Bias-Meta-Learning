@@ -37,8 +37,9 @@ class _Conv(torch.nn.Module):
 
     def initialize(self):
         # Initializing the networks parameters.
+        self.classifier.initialize()
         for name, module in self.encoder.named_children():
-            if isinstance(module, (_ConvBlock, _WarpBlock, _Classifier)):
+            if isinstance(module, (_ConvBlock, _WarpBlock)):
                 module.initialize()
 
     def reset_batch_norm(self):
@@ -74,7 +75,7 @@ class _ConvBlock(torch.nn.Module):
 
     def __init__(self, in_channels, out_channels):
         super(_ConvBlock, self).__init__()
-        self.conv = torch.nn.Conv2d(in_channels, out_channels, 3, padding=1, bias=False)
+        self.conv = torch.nn.Conv2d(in_channels, out_channels, 3, padding=1, bias=True)
         self.bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
         self.relu = torch.nn.ReLU(inplace=True)
         self.pool = torch.nn.MaxPool2d(2)
@@ -87,6 +88,7 @@ class _ConvBlock(torch.nn.Module):
 
     def initialize(self):
         torch.nn.init.normal_(self.conv.weight, 0, 0.01)
+        self.conv.bias.data.zero_()
         self.bn.weight.data.fill_(1)
         self.bn.bias.data.zero_()
 
@@ -101,7 +103,7 @@ class _WarpBlock(torch.nn.Module):
 
     def __init__(self, in_channels, out_channels):
         super(_WarpBlock, self).__init__()
-        self.conv = torch.nn.Conv2d(in_channels, out_channels, 3, padding=1, bias=False)
+        self.conv = torch.nn.Conv2d(in_channels, out_channels, 3, padding=1, bias=True)
         self.bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
 
     def forward(self, x):
@@ -109,6 +111,7 @@ class _WarpBlock(torch.nn.Module):
 
     def initialize(self):
         torch.nn.init.dirac_(self.conv.weight)
+        self.conv.bias.data.zero_()
         self.bn.weight.data.fill_(1)
         self.bn.bias.data.zero_()
 
