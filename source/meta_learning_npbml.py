@@ -111,8 +111,7 @@ def meta_testing_npbml(base_model, base_optimizer, dataset, base_gradient_steps,
             #yp_support_query = fmodel(X_support_query, inner_step == 0)
             #_, yp_query = torch.split(yp_support_query, [y_support.size(0), y_query.size(0)], dim=0)
 
-            # Computing the task loss and updating the meta weights.
-            yp_query = fmodel(X_query)  # Computing the base network predictions on query.
+            yp_query = fmodel(X_query).detach()  # Computing the base network predictions on query.
 
             # Storing the validation performance history.
             performance_history.append(performance_metric(yp_query, y_query).item())

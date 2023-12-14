@@ -126,7 +126,7 @@ class _StateCheckpointer(torch.nn.Module):
                 # Computing each query instances euclidean distance to each of the prototypes.
                 query = query.unsqueeze(1).expand(query.shape[0], prototypes.shape[0], -1)
                 prototypes = prototypes.unsqueeze(0).expand(query.shape[0], prototypes.shape[0], -1)
-                logits = - ((query - prototypes)**2).sum(dim=2)
+                logits = - ((query - prototypes)**2).sum(dim=2).detach()
 
                 # Computing each query instances cosine similarity to each of the prototypes.
                 # logits = torch.mm(query, torch.nn.functional.normalize(prototypes, p=2, dim=-1).t())

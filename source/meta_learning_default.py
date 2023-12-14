@@ -94,8 +94,7 @@ def meta_testing_default(base_model, base_optimizer, dataset, base_gradient_step
                 loss_support = loss_function(yp_support, y_support)  # Finding the loss wrt. support set.
                 diffopt.step(loss_support)  # Update base network weights (theta).
 
-            # Computing the task loss and updating the meta weights.
-            yp_query = fmodel(X_query)  # Computing the base network predictions on query.
+            yp_query = fmodel(X_query).detach()  # Computing the base network predictions on query.
 
             # Storing the validation performance history.
             performance_history.append(performance_metric(yp_query, y_query).item())
