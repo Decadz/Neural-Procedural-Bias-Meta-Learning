@@ -9,13 +9,9 @@ class _Conv(torch.nn.Module):
 
         self.encoder = torch.nn.Sequential(collections.OrderedDict([
             ("adapt1", _ConvBlock(input_channels, num_filters)),
-            ("warp1", _WarpBlock(num_filters, num_filters)),
             ("adapt2", _ConvBlock(num_filters, num_filters)),
-            ("warp2", _WarpBlock(num_filters, num_filters)),
             ("adapt3", _ConvBlock(num_filters, num_filters)),
-            ("warp3", _WarpBlock(num_filters, num_filters)),
             ("adapt4", _ConvBlock(num_filters, num_filters)),
-            ("warp4", _WarpBlock(num_filters, num_filters)),
             ("adaPool", torch.nn.AdaptiveAvgPool2d(1)),
             ("flatten", torch.nn.Flatten())
         ]))
@@ -32,14 +28,14 @@ class _Conv(torch.nn.Module):
         self.initialize()
 
     def forward(self, x):
-        x = self.encoder(x)
-        return self.classifier(x)
+        z = self.encoder(x)
+        return self.classifier(z), z
 
     def initialize(self):
         # Initializing the networks parameters.
         self.classifier.initialize()
         for name, module in self.encoder.named_children():
-            if isinstance(module, (_ConvBlock, _WarpBlock)):
+            if isinstance(module, _ConvBlock):
                 module.initialize()
 
     def reset_batch_norm(self):
@@ -54,12 +50,13 @@ class _Conv(torch.nn.Module):
                 yield from module.meta_parameters()
         yield from self.classifier.meta_parameters()
 
-    def warp_parameters(self):
-        for module in self.encoder.children():
-            if hasattr(module, "warp_parameters"):
-                yield from module.warp_parameters()
-
     def base_parameters(self):
+        for module in self.encoder.children():
+            if hasattr(module, "base_parameters"):
+                yield from module.base_parameters()
+        yield from self.classifier.base_parameters()
+
+    def pretraining_parameters(self):
         for module in self.encoder.children():
             if hasattr(module, "base_parameters"):
                 yield from module.base_parameters()
@@ -96,26 +93,6 @@ class _ConvBlock(torch.nn.Module):
         yield from self.conv.parameters()
 
     def base_parameters(self):
-        yield from self.conv.parameters()
-
-
-class _WarpBlock(torch.nn.Module):
-
-    def __init__(self, in_channels, out_channels):
-        super(_WarpBlock, self).__init__()
-        self.conv = torch.nn.Conv2d(in_channels, out_channels, 3, padding=1, bias=True)
-        self.bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
-
-    def forward(self, x):
-        return self.bn(self.conv(x))
-
-    def initialize(self):
-        torch.nn.init.dirac_(self.conv.weight)
-        self.conv.bias.data.zero_()
-        self.bn.weight.data.fill_(1)
-        self.bn.bias.data.zero_()
-
-    def warp_parameters(self):
         yield from self.conv.parameters()
 
 

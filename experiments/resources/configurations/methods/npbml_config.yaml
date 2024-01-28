@@ -1,18 +1,19 @@
 # NPBML Few-Shot Learning Settings.
 pretrained_backbone: True
+task_embedding_size: 32
 
 # Meta Optimization used in Meta-Training.
-meta_gradient_steps: 60000
+meta_gradient_steps: 30000
 meta_batch_size: 4
 meta_optimizer_name: "adam"
 meta_optimizer_settings:
-  lr: 0.0001
+  lr: 0.00001
 
 # Meta-Scheduler used in Meta-Training
 meta_scheduler_name: "cosine"
 meta_scheduler_settings:
   T_max: 60000
-  eta_min: 0.00001
+  eta_min: 0.000001
 
 # Base Optimization used in Meta-Training.
 base_gradient_steps: 5
@@ -22,13 +23,3 @@ base_optimizer_settings:
   momentum: 0.9
   nesterov: True
   weight_decay: 0.0005
-
-# Bootstrapped Meta-Gradient Settings.
-matching_loss_fn: "mseloss"
-base_bootstrapped_gradient_steps: 0
-base_bootstrapped_optimizer_name: "sgd"
-base_bootstrapped_optimizer_settings:
-  lr: 0.0001
-  momentum: 0
-  nesterov: False
-  weight_decay: 0

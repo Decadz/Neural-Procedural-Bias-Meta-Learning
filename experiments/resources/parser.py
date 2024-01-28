@@ -39,11 +39,6 @@ def register_configurations(parser):
                         help="The number of base gradient steps to take in the inner loop.")
     parser.add_argument("--base_optimizer_name", required=False, type=str,
                         help="The base optimizer used for learning in the inner loop.")
-    parser.add_argument("--base_bootstrapped_gradient_steps", required=False, type=int,
-                        help="The number of bootstrapped gradient steps taken in the inner loop.")
-    parser.add_argument("--base_bootstrapped_optimizer_name", required=False, type=str,
-                        help="The base bootstrapped optimizer used for learning in the inner loop when using"
-                             " the bootstrapped meta gradients algorithm (S Flennerhag, 2021).")
 
     # Encoder/Model Pretraining.
     parser.add_argument("--pretrained_backbone", required=False, type=lambda x: (str(x).lower() == 'true'),
@@ -58,8 +53,6 @@ def register_configurations(parser):
     # Learning Objectives and Performance Metric.
     parser.add_argument("--performance_metric", required=False, type=str,
                         help="Performance metric used for reporting performance.")
-    parser.add_argument("--matching_loss_fn", required=False, type=str,
-                        help="The matching function used when performing bootstrapped meta gradients algorithm.")
     parser.add_argument("--meta_loss_fn", required=False, type=str,
                         help="The loss function used for evaluating performance in the outer loop.")
     parser.add_argument("--base_loss_fn", required=False, type=str,
@@ -110,10 +103,6 @@ def override_configurations(args, args_unknown, required_args, dataset_config, m
                 config["meta_scheduler_settings"][key] = ast.literal_eval(arg)
 
             elif "base_optimizer" in key:
-                key = key.replace("--base_optimizer_", "")
-                config["base_optimizer_settings"][key] = ast.literal_eval(arg)
-
-            elif "base_bootstrapped_optimizer" in key:
                 key = key.replace("--base_optimizer_", "")
                 config["base_optimizer_settings"][key] = ast.literal_eval(arg)
 

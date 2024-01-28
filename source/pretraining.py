@@ -4,7 +4,7 @@ import copy
 
 
 def pretrain(model, optimizer, scheduler, training, validation, num_ways, num_shots, gradient_steps,
-                batch_size, loss_function, performance_metric, verbose, device, **kwargs):
+             batch_size, loss_function, performance_metric, verbose, device, **kwargs):
 
     """
     A vanilla training loop which uses stochastic gradient descent to learn
@@ -49,7 +49,7 @@ def pretrain(model, optimizer, scheduler, training, validation, num_ways, num_sh
         X, y = X.to(device), y.to(device)
 
         # Performing inference and computing the loss.
-        y_pred = model(X)
+        y_pred, _ = model(X)
         loss = loss_function(y_pred, y)
 
         # Performing the backward pass and gradient step/update.
@@ -58,9 +58,6 @@ def pretrain(model, optimizer, scheduler, training, validation, num_ways, num_sh
 
         if scheduler is not None:
             scheduler.step()
-
-        # Resetting any batch normalization layer.
-        model.reset_batch_norm()
 
         # Checkpointing the model and returning the validation performance.
         performance = checkpointer.checkpoint(model, step)
@@ -127,9 +124,6 @@ class _StateCheckpointer(torch.nn.Module):
                 query = query.unsqueeze(1).expand(query.shape[0], prototypes.shape[0], -1)
                 prototypes = prototypes.unsqueeze(0).expand(query.shape[0], prototypes.shape[0], -1)
                 logits = - ((query - prototypes)**2).sum(dim=2).detach()
-
-                # Computing each query instances cosine similarity to each of the prototypes.
-                # logits = torch.mm(query, torch.nn.functional.normalize(prototypes, p=2, dim=-1).t())
 
                 # Computing the performance with the given performance metric.
                 performance_history.append(self.performance_metric(logits, y_query).item())

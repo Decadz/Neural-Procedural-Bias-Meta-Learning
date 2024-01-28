@@ -65,21 +65,15 @@ def _run_experiment(dataset, model, config, random_state):
     # If using a Conv4 base model train using Adam.
     if "conv" in args.model:
         pretrain_optimizer = torch.optim.SGD(
-            base_model.base_parameters(), lr=0.01, momentum=0.9, nesterov=True, weight_decay=0.0005)
+            base_model.pretraining_parameters(), lr=0.01, momentum=0.9, nesterov=True, weight_decay=0.0005)
 
         pretrain_scheduler = torch.optim.lr_scheduler.MultiStepLR(
             pretrain_optimizer, milestones=[100000, 150000, 175000, 190000], gamma=0.1)
 
-        #pretrain_optimizer = torch.optim.Adam(
-        #    base_model.base_parameters(), lr=0.001, weight_decay=0.0005)
-
-        #pretrain_scheduler = torch.optim.lr_scheduler.MultiStepLR(
-        #    pretrain_optimizer, milestones=[40000, 60000, 80000, 100000], gamma=0.1)
-
     # If using a ResNet base model train using SGD.
     elif "resnet" in args.model:
         pretrain_optimizer = torch.optim.SGD(
-            base_model.base_parameters(), lr=0.1, momentum=0.9, nesterov=True, weight_decay=0.0005)
+            base_model.pretraining_parameters(), lr=0.1, momentum=0.9, nesterov=True, weight_decay=0.0005)
 
         pretrain_scheduler = torch.optim.lr_scheduler.MultiStepLR(
             pretrain_optimizer, milestones=[80000, 100000, 110000, 120000], gamma=0.1)

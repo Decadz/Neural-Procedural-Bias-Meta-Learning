@@ -1,7 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import matplotlib
-import datetime
 import torch
 import json
 
@@ -10,25 +8,21 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def main():
-    #plot_learning_curve()
-    plot_pretraining_learning_curve()
+    plot_learning_curve()
+    #plot_pretraining_learning_curve()
 
 
 def plot_learning_curve():
 
     paths = [
-        #"results/miniimagenet/npbml-miniimagenet-adaconv32-5way-1shot-0.json",
-        #"results/miniimagenet/npbml-miniimagenet-adaconv48-5way-1shot-0.json",
-        #"results/miniimagenet/npbml-miniimagenet-adaconv64-5way-1shot-0.json",
-        #"results/miniimagenet/npbml-miniimagenet-adaconv128-5way-1shot-0.json",
-        #"results/miniimagenet/npbml-miniimagenet-adaconv32-5way-5shot-0.json",
-        #"results/miniimagenet/npbml-miniimagenet-adaconv48-5way-5shot-0.json",
-        #"results/miniimagenet/npbml-miniimagenet-adaconv64-5way-5shot-0.json",
-        #"results/miniimagenet/npbml-miniimagenet-adaconv128-5way-5shot-0.json"
-        "results/miniimagenet/npbml-miniimagenet-adawarpconv128-5way-5shot-100.json",
-        "results/miniimagenet/npbml-miniimagenet-adawarpconv128-5way-5shot-101.json",
-        "results/miniimagenet/npbml-miniimagenet-adawarpconv128-5way-5shot-102.json",
-        "results/miniimagenet/npbml-miniimagenet-adawarpconv128-5way-5shot-103.json",
+        "results/miniimagenet/npbml-no-pretraining-film-and-transductive-loss/npbml-miniimagenet-adaconv48-5way-5shot-0.json",
+        #"results/miniimagenet/npbml-no-pretraining-film-and-transductive-loss/npbml-miniimagenet-adaconv128-5way-1shot-0.json",
+        "results/miniimagenet/npbml-no-pretraining-film-and-transductive-loss/npbml-miniimagenet-adaconv128-5way-5shot-0.json",
+
+        #"results/miniimagenet/npbml-film-warp-inductive-loss/npbml-miniimagenet-adaconv48-5way-1shot-1.json",
+        "results/miniimagenet/npbml-film-warp-inductive-loss/npbml-miniimagenet-adaconv48-5way-5shot-1.json",
+        #"results/miniimagenet/npbml-film-warp-inductive-loss/npbml-miniimagenet-adaconv128-5way-1shot-1.json",
+        "results/miniimagenet/npbml-film-warp-inductive-loss/npbml-miniimagenet-adaconv128-5way-5shot-1.json",
     ]
 
     # Setting the plot settings.
@@ -38,7 +32,7 @@ def plot_learning_curve():
     plt.rcParams["figure.figsize"] = (4.25, 5)  # (8, 4.5)
 
     # Name of the methods and their respective plotting colors.
-    method_names = ["CA(1e-4, 1e-5)", "CA(1e-4, 1e-5)", "FixedLR(1e-05)", "FixedLR(5e-05)"]
+    method_names = ["0", "1", "2", "3", "4", "5", "6", "7", "8"]
 
     # Iterating over the different methods.
     for path, method in zip(paths, method_names):
@@ -63,14 +57,14 @@ def plot_learning_curve():
 def plot_pretraining_learning_curve():
 
     paths = [
-        "results/miniimagenet/pretraining-miniimagenet-adaconv32-5way.json",
-        "results/miniimagenet/pretraining-miniimagenet-adaconv48-5way.json",
-        "results/miniimagenet/pretraining-miniimagenet-adaconv64-5way.json",
+        #"results/miniimagenet/pretraining-miniimagenet-adaconv32-5way.json",
+        #"results/miniimagenet/pretraining-miniimagenet-adaconv48-5way.json",
+        #"results/miniimagenet/pretraining-miniimagenet-adaconv64-5way.json",
         "results/miniimagenet/pretraining-miniimagenet-adaconv128-5way.json",
-        "results/miniimagenet/pretraining-old/pretraining-miniimagenet-adawarpconv32-5way.json",
-        "results/miniimagenet/pretraining-old/pretraining-miniimagenet-adawarpconv48-5way.json",
-        "results/miniimagenet/pretraining-old/pretraining-miniimagenet-adawarpconv64-5way.json",
-        "results/miniimagenet/pretraining-old/pretraining-miniimagenet-adawarpconv128-5way.json",
+        #"results/miniimagenet/pretraining-with-head-fixed/pretraining-miniimagenet-adaconv32-5way.json",
+        #"results/miniimagenet/pretraining-with-head-fixed/pretraining-miniimagenet-adaconv48-5way.json",
+        #"results/miniimagenet/pretraining-with-head-fixed/pretraining-miniimagenet-adaconv64-5way.json",
+        "results/miniimagenet/pretraining-with-head-fixed/pretraining-miniimagenet-adaconv128-5way.json",
 
     ]
 
@@ -81,7 +75,7 @@ def plot_pretraining_learning_curve():
     plt.rcParams["figure.figsize"] = (4.25, 5)  # (8, 4.5)
 
     # Name of the methods and their respective plotting colors.
-    method_names = ["1", "2", "3", "4", "5", "6", "7", "8"]
+    method_names = ["CONV4-128 (Old)", "CONV4-64 (New)", "3", "4", "5", "6", "7", "8"]
 
     # Iterating over the different methods.
     for path, method in zip(paths, method_names):

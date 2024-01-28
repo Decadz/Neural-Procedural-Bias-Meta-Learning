@@ -15,7 +15,7 @@ base_optimizer_settings:
   weight_decay: 0.0005
 
 # Learning objectives and performance metric.
-evaluation_metric: "errorrate"
+evaluation_metric: "accuracy"
 meta_loss_fn: "celoss"
 base_loss_fn: "celoss"
 

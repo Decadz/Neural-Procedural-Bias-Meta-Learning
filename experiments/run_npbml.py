@@ -4,15 +4,13 @@ sys.path.append(os.getcwd())
 from experiments.resources import *
 from source import *
 
-import functools
 import argparse
 import torch
 import random
 import numpy
 import time
 import yaml
-
-# python experiments/run_npbml.py --dataset miniimagenet --model adaconv32 --num_ways 5 --num_shots 5 --meta_batch_size 2 --pretrained_backbone True --seeds 0 --device cuda:0
+import copy
 
 # Use the GPU/CUDA when available, else use the CPU.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -77,9 +75,11 @@ def _run_experiment(dataset, model, config, random_state):
         base_model = model(**config).to(device)
 
     # Creating the meta learned loss function.
-    learned_loss = AdaLossNetwork(
-        num_ways=config["num_ways"], task_loss_fn=objective_archive[config["meta_loss_fn"]],
-    ).to(device)
+    learned_loss = AdaLossNetwork(**config).to(device)
+
+    # Creating a task encoder for generating task embeddings.
+    task_encoder = copy.deepcopy(base_model)
+    task_encoder.eval()
 
     meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
        list(base_model.meta_parameters()) + list(learned_loss.meta_parameters()),
@@ -88,11 +88,6 @@ def _run_experiment(dataset, model, config, random_state):
     # Creating the base model's *base* optimizer.
     base_optimizer = optimizer_archive[config["base_optimizer_name"]](
         base_model.base_parameters(), **config["base_optimizer_settings"])
-
-    # Creating the *function* for the bootstrapped optimizer.
-    base_bootstrapped_optimizer = functools.partial(
-        optimizer_archive[config["base_bootstrapped_optimizer_name"]],
-        **config["base_bootstrapped_optimizer_settings"])
 
     # Creating the meta learning rate scheduler.
     meta_scheduler = scheduler_archive[config["meta_scheduler_name"]](
@@ -109,11 +104,9 @@ def _run_experiment(dataset, model, config, random_state):
 
     # Performing the meta-training phase.
     meta_training_history, base_model, learned_loss = meta_training_npbml(
-        base_model, meta_optimizer, base_optimizer, base_bootstrapped_optimizer,
-        meta_scheduler, training, validation,
-        matching_loss_function=objective_archive[config["matching_loss_fn"]],
+        base_model, meta_optimizer, base_optimizer, meta_scheduler, training, validation,
         meta_loss_function=objective_archive[config["meta_loss_fn"]],
-        base_loss_function=learned_loss,  #  objective_archive[config["base_loss_fn"]],  # TODO
+        base_loss_function=learned_loss, task_encoder=task_encoder,
         performance_metric=objective_archive[config["evaluation_metric"]],
         **config
     )
@@ -123,16 +116,16 @@ def _run_experiment(dataset, model, config, random_state):
 
     # Exporting the learned model's state dictionary.
     export_model(base_model, res_directory, file_name)
-    #export_loss(learned_loss, res_directory, file_name)
+    export_loss(learned_loss, res_directory, file_name)
 
     # Performing the meta-testing phase.
     results["training_mean"], results["training_ci"] = meta_testing_npbml(
-        base_model, base_optimizer, training, loss_function=learned_loss, #  TODO - objective_archive[config["base_loss_fn"]],
+        base_model, base_optimizer, training, loss_function=learned_loss, task_encoder=task_encoder,
         performance_metric=objective_archive[config["evaluation_metric"]],
         **config
     )
     results["testing_mean"], results["testing_ci"] = meta_testing_npbml(
-        base_model, base_optimizer, testing, loss_function=learned_loss, #  TODO - objective_archive[config["base_loss_fn"]],
+        base_model, base_optimizer, testing, loss_function=learned_loss, task_encoder=task_encoder,
         performance_metric=objective_archive[config["evaluation_metric"]],
         **config
     )

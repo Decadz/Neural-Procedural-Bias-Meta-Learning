@@ -5,7 +5,7 @@ test_shots: 15
 test_tasks: 600
 
 # Learning objectives and performance metric.
-evaluation_metric: "errorrate"
+evaluation_metric: "accuracy"
 matching_loss_fn: "mseloss"
 meta_loss_fn: "celoss"
 base_loss_fn: "celoss"
