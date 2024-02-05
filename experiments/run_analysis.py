@@ -15,14 +15,23 @@ def main():
 def plot_learning_curve():
 
     paths = [
-        "results/miniimagenet/npbml-no-pretraining-film-and-transductive-loss/npbml-miniimagenet-adaconv48-5way-5shot-0.json",
-        #"results/miniimagenet/npbml-no-pretraining-film-and-transductive-loss/npbml-miniimagenet-adaconv128-5way-1shot-0.json",
-        "results/miniimagenet/npbml-no-pretraining-film-and-transductive-loss/npbml-miniimagenet-adaconv128-5way-5shot-0.json",
+        #"results/miniimagenet-v3/pretraining-miniimagenet-v3-adaconv32-5way.json",
+        #"results/miniimagenet-v3/pretraining-miniimagenet-v3-adaconv48-5way.json",
+        #"results/miniimagenet-v3/pretraining-miniimagenet-v3-adaconv64-5way.json",
+        #"results/miniimagenet-v3/pretraining-miniimagenet-v3-adaconv128-5way.json",
 
-        #"results/miniimagenet/npbml-film-warp-inductive-loss/npbml-miniimagenet-adaconv48-5way-1shot-1.json",
-        "results/miniimagenet/npbml-film-warp-inductive-loss/npbml-miniimagenet-adaconv48-5way-5shot-1.json",
-        #"results/miniimagenet/npbml-film-warp-inductive-loss/npbml-miniimagenet-adaconv128-5way-1shot-1.json",
-        "results/miniimagenet/npbml-film-warp-inductive-loss/npbml-miniimagenet-adaconv128-5way-5shot-1.json",
+        #"results/miniimagenet-v3-old/pretraining-miniimagenet-v3-adaconv32-5way.json",
+        #"results/miniimagenet-v3-old/pretraining-miniimagenet-v3-adaconv48-5way.json",
+        #"results/miniimagenet-v3-old/pretraining-miniimagenet-v3-adaconv64-5way.json",
+        #"results/miniimagenet-v3-old/pretraining-miniimagenet-v3-adaconv128-5way.json",
+
+        #"results/miniimagenet-v3/pretraining-miniimagenet-v3-adaconv32-5way-v2.json",
+        #"results/miniimagenet-v3/pretraining-miniimagenet-v3-adaconv32-5way-v4.json",
+        "results/miniimagenet_v6/npbml-miniimagenet-adaconv32-5way-5shot-13.json",
+        "results/miniimagenet_v6/npbml-miniimagenet-adaconv32-5way-5shot-14.json",
+        "results/miniimagenet_v6/npbml-miniimagenet-adaconv32-5way-5shot-15.json",
+        "results/miniimagenet_v6/npbml-miniimagenet-adaconv32-5way-5shot-16.json",
+
     ]
 
     # Setting the plot settings.
@@ -32,7 +41,7 @@ def plot_learning_curve():
     plt.rcParams["figure.figsize"] = (4.25, 5)  # (8, 4.5)
 
     # Name of the methods and their respective plotting colors.
-    method_names = ["0", "1", "2", "3", "4", "5", "6", "7", "8"]
+    method_names = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
 
     # Iterating over the different methods.
     for path, method in zip(paths, method_names):
@@ -45,7 +54,9 @@ def plot_learning_curve():
 
         # Computing the average learning curve.
         plt.plot(np.linspace(0, len(loss), len(loss)), loss, linewidth=3, label=method)
-        print(method, "=", str(round(results["testing_mean"], 5)))
+        print("Training:", method, "=", str(round(results["training_mean"], 5)))
+        print("Testing:", method, "=", str(round(results["testing_mean"], 5)))
+        print()
 
     plt.ylabel("Error")
     plt.grid(alpha=0.5)
@@ -57,14 +68,14 @@ def plot_learning_curve():
 def plot_pretraining_learning_curve():
 
     paths = [
-        #"results/miniimagenet/pretraining-miniimagenet-adaconv32-5way.json",
-        #"results/miniimagenet/pretraining-miniimagenet-adaconv48-5way.json",
-        #"results/miniimagenet/pretraining-miniimagenet-adaconv64-5way.json",
-        "results/miniimagenet/pretraining-miniimagenet-adaconv128-5way.json",
-        #"results/miniimagenet/pretraining-with-head-fixed/pretraining-miniimagenet-adaconv32-5way.json",
-        #"results/miniimagenet/pretraining-with-head-fixed/pretraining-miniimagenet-adaconv48-5way.json",
-        #"results/miniimagenet/pretraining-with-head-fixed/pretraining-miniimagenet-adaconv64-5way.json",
-        "results/miniimagenet/pretraining-with-head-fixed/pretraining-miniimagenet-adaconv128-5way.json",
+        #"results/miniimagenet-v3/pretraining-miniimagenet-v3-adaconv32-5way-old.json",
+        #"results/miniimagenet-v3/pretraining-miniimagenet-v3-adaconv48-5way-old.json",
+        #"results/miniimagenet-v3/pretraining-miniimagenet-v3-adaconv64-5way.json",
+        "results/miniimagenet-v3/pretraining-miniimagenet-v3-adaconv128-5way.json",
+        #"results/miniimagenet-v3/pretraining-with-head-fixed/pretraining-miniimagenet-v3-adaconv32-5way-old.json",
+        #"results/miniimagenet-v3/pretraining-with-head-fixed/pretraining-miniimagenet-v3-adaconv48-5way-old.json",
+        #"results/miniimagenet-v3/pretraining-with-head-fixed/pretraining-miniimagenet-v3-adaconv64-5way.json",
+        "results/miniimagenet-v3/pretraining-with-head-fixed/pretraining-miniimagenet-v3-adaconv128-5way.json",
 
     ]
 

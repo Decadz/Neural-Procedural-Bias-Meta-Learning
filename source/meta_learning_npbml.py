@@ -6,7 +6,7 @@ import copy
 
 def meta_training_npbml(base_model, meta_optimizer, base_optimizer, meta_scheduler, training, validation,
                         meta_gradient_steps, base_gradient_steps, meta_batch_size, meta_loss_function,
-                        base_loss_function, task_encoder, performance_metric, verbose, **kwargs):
+                        base_loss_function, performance_metric, verbose, **kwargs):
 
     # Objects for keeping track of the learning history.
     checkpointer = _StateCheckpointerNPBML(
@@ -33,13 +33,8 @@ def meta_training_npbml(base_model, meta_optimizer, base_optimizer, meta_schedul
             # Creating a differentiable optimizer and stateless models via PyTorch higher.
             with higher.innerloop_ctx(base_model, base_optimizer, copy_initial_weights=False) as (fmodel, diffopt):
 
-                # Generating a task embedding with the pretrained task encoder.
-                with torch.no_grad():
-                    task_embedding = task_encoder.encoder(X_support_query).mean(0)
-
-                # Preparing the task adaptive learned loss network and base model.
-                base_loss_function.adapt_representation(task_embedding)
-                fmodel.adapt_representation(task_embedding)
+                # Resetting the classification head to ensure permutation invariance.
+                fmodel.reset_classifier()
 
                 # Taking a predetermined number of inner steps before meta update.
                 for inner_step in range(base_gradient_steps):
@@ -48,18 +43,14 @@ def meta_training_npbml(base_model, meta_optimizer, base_optimizer, meta_schedul
 
                     # Computing the predictions on both the support and query set.
                     fx, z = fmodel(X_support_query)
-                    loss_support = base_loss_function(fx, z, y_support)  # Finding the loss wrt. support set.
+                    loss_support = base_loss_function(fx, z, y_support, fmodel)  # Finding the loss wrt. support set.
                     diffopt.step(loss_support)  # Update base network weights (theta).
 
                 # Computing the task loss and updating the meta weights.
                 yp_query, _ = fmodel(X_query)  # Computing the base network predictions on query.
-
                 loss_query = meta_loss_function(yp_query, y_query)  # Finding the loss wrt. query set.
                 loss_query.div_(meta_batch_size)  # Dividing the loss by the batch size.
                 loss_query.backward()  # Unrolls through the gradient steps.
-
-        # Applying meta-gradient clipping as done in MAML++ (note sure if even useful).
-        torch.nn.utils.clip_grad_value_(base_model.parameters(), clip_value=10)
 
         # Update the meta parameters.
         meta_optimizer.step()
@@ -69,7 +60,7 @@ def meta_training_npbml(base_model, meta_optimizer, base_optimizer, meta_schedul
             meta_scheduler.step()
 
         # Checkpointing the model and returning the validation performance.
-        performance = checkpointer.checkpoint(base_model, base_loss_function, task_encoder, step)
+        performance = checkpointer.checkpoint(base_model, base_loss_function, step)
         training_progress.set_description("Best: " + str(round(checkpointer.best_performance, 4)) +
                                           " | Current: " + str(round(performance, 4)) + " | Progress")
 
@@ -78,7 +69,7 @@ def meta_training_npbml(base_model, meta_optimizer, base_optimizer, meta_schedul
 
 
 def meta_testing_npbml(base_model, base_optimizer, dataset, base_gradient_steps, loss_function,
-                       task_encoder, performance_metric, test_tasks, verbose, **kwargs):
+                       performance_metric, test_tasks, verbose, **kwargs):
 
     # List for keeping track of the learning history.
     performance_history = []
@@ -94,22 +85,17 @@ def meta_testing_npbml(base_model, base_optimizer, dataset, base_gradient_steps,
 
         # Creating a differentiable optimizer and stateless models via PyTorch higher.
         with higher.innerloop_ctx(base_model, base_optimizer, copy_initial_weights=False,
-                                  track_higher_grads=True) as (fmodel, diffopt):
+                                  track_higher_grads=False) as (fmodel, diffopt):
 
-            # Generating a task embedding with the pretrained task encoder.
-            with torch.no_grad():
-                task_embedding = task_encoder.encoder(X_support_query).mean(0)
-
-            # Preparing the task adaptive learned loss network and base model.
-            loss_function.adapt_representation(task_embedding)
-            fmodel.adapt_representation(task_embedding)
+            # Resetting the classification head to ensure permutation invariance.
+            fmodel.reset_classifier()
 
             # Taking a predetermined number of inner steps before meta update.
             for inner_step in range(base_gradient_steps):
 
                 # Computing the predictions on both the support and query set.
                 fx, z = fmodel(X_support_query)
-                loss_support = loss_function(fx, z, y_support)  # Finding the loss wrt. support set.
+                loss_support = loss_function(fx, z, y_support, fmodel)  # Finding the loss wrt. support set.
                 diffopt.step(loss_support)  # Update base network weights (theta).
 
             # Computing the base network predictions on query.
@@ -151,7 +137,7 @@ class _StateCheckpointerNPBML(torch.nn.Module):
         # List for keeping track of the learning history.
         self.performance_history = []
 
-    def checkpoint(self, base_model, loss_function, task_encoder, step):
+    def checkpoint(self, base_model, loss_function, step):
 
         # If step is not in the desired frequency the skip checkpointing.
         if step % self.frequency == 0 or step == self.meta_gradient_steps - 1:
@@ -159,12 +145,11 @@ class _StateCheckpointerNPBML(torch.nn.Module):
             # Performing the meta-validation stage.
             performance, _ = meta_testing_npbml(
                 base_model, self.base_optimizer, self.dataset, self.base_gradient_steps, loss_function,
-                task_encoder, self.performance_metric, self.test_tasks, self.verbose
+                self.performance_metric, self.test_tasks, self.verbose
             )
 
             # If this is the best model so far then cache the model.
             if self.best_model is None or performance < self.best_performance:
-                loss_function.reset_gamma_beta()
                 self.best_performance = performance
                 self.best_model = copy.deepcopy(base_model)
                 self.best_loss_function = copy.deepcopy(loss_function)

@@ -30,9 +30,6 @@ def meta_training_default(base_model, meta_optimizer, base_optimizer, meta_sched
             # Creating a differentiable optimizer and stateless models via PyTorch higher.
             with higher.innerloop_ctx(base_model, base_optimizer, copy_initial_weights=False) as (fmodel, diffopt):
 
-                # Resetting the running statistics for all batch normalization layers.
-                fmodel.reset_batch_norm()
-
                 # Taking a predetermined number of inner steps before meta update.
                 for _ in range(base_gradient_steps):
 
@@ -81,9 +78,6 @@ def meta_testing_default(base_model, base_optimizer, dataset, base_gradient_step
         # Creating a differentiable optimizer and stateless models via PyTorch higher.
         with higher.innerloop_ctx(base_model, base_optimizer, copy_initial_weights=False,
                                   track_higher_grads=False) as (fmodel, diffopt):
-
-            # Resetting the running statistics for all batch normalization layers.
-            fmodel.reset_batch_norm()
 
             # Taking a predetermined number of inner steps before meta update.
             for _ in range(base_gradient_steps):
