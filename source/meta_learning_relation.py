@@ -24,7 +24,7 @@ def meta_training_relation(model, optimizer, scheduler, training, validation, nu
         X_support_query = torch.cat((X_support, X_query), dim=0)
 
         # Performing inference and computing the relation scores.
-        y_pred, _ = model(X_support_query)
+        y_pred = model(X_support_query)
 
         # Performing one-hot encoding on the ground truth label.
         y_query = torch.nn.functional.one_hot(y_query, num_classes=num_ways)
@@ -66,7 +66,7 @@ def meta_testing_relation(model, dataset, performance_metric, test_tasks, verbos
 
         # Performing inference and computing the relation scores.
         with torch.no_grad():
-            y_pred, _ = model(X_support_query)
+            y_pred = model(X_support_query)
 
         # Storing the validation performance history.
         performance_history.append(performance_metric(y_pred, y_query).item())

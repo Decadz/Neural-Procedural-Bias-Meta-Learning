@@ -66,29 +66,14 @@ def _run_experiment(dataset, model, config, random_state):
         # Loading the base model's state dictionary from the .pth file
         base_model_state_dict = torch.load(pretrained_directory + file_name, map_location=torch.device('cpu'))
 
-        #base_model_state_dict = {key: value for key, value in base_model_state_dict.items() if
-        #                       all(keyword not in key for keyword in ["gamma", "beta"])}
-
         # Creating a base model instances and loading in the state dictionary.
         base_model = model(**config).to(device)
         base_model.load_state_dict(base_model_state_dict)
 
-        """
-        # Specify the layers for which you want to turn off gradient tracking
-        layers_to_freeze = [
-            base_model.encoder.adapt1,
-            base_model.encoder.adapt2,
-            base_model.encoder.adapt3,
-            base_model.encoder.adapt4,
-            base_model.encoder.warp3,
-            base_model.encoder.warp4,
-        ]
-
         # Disable gradient tracking for the specified layers
-        for layer in layers_to_freeze:
+        for layer in [base_model.encoder.block1, base_model.encoder.block2, base_model.encoder.block3]:
             for param in layer.parameters():
                 param.requires_grad = False
-        """
 
     else:  # If we are using an untrained backbone.
         base_model = model(**config).to(device)

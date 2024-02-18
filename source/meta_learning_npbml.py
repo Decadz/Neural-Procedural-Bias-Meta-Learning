@@ -38,18 +38,18 @@ def meta_training_npbml(base_model, meta_optimizer, base_optimizer, meta_schedul
 
                 # Generating the global task embedding and relation scores.
                 with torch.no_grad():
-                    relation_scores, task_embeddings = task_encoder(X_support_query)
+                    task_embeddings = task_encoder(X_support_query)
 
                 # Taking a predetermined number of inner steps before meta update.
                 for inner_step in range(base_gradient_steps):
 
                     # Computing the predictions on both the support and query set.
-                    fx = fmodel(X_support_query, task_embeddings, task_adaptive=True)  # Compute forward pass.
-                    loss_support = base_loss_function(fx, y_support, relation_scores, fmodel)  # Compute learned loss.
+                    fx = fmodel(X_support_query, task_adaptive=True)  # Compute forward pass.
+                    loss_support = base_loss_function(fx, y_support, task_embeddings, fmodel)  # Compute learned loss.
                     diffopt.step(loss_support)  # Update base network weights (theta).
 
                 # Computing the task loss and updating the meta weights.
-                yp_query = fmodel(X_query, task_embeddings, task_adaptive=True)  # Computing forward on query.
+                yp_query = fmodel(X_query, task_adaptive=True)  # Computing forward on query.
                 loss_query = meta_loss_function(yp_query, y_query)  # Finding the loss wrt. query set.
                 loss_query.div_(meta_batch_size)  # Dividing the loss by the batch size.
                 loss_query.backward()  # Unrolls through the gradient steps.
@@ -94,19 +94,19 @@ def meta_testing_npbml(base_model, base_optimizer, dataset, base_gradient_steps,
 
             # Generating the global task embedding and relation scores.
             with torch.no_grad():
-                relation_scores, task_embeddings = task_encoder(X_support_query)
+                task_embeddings = task_encoder(X_support_query)
 
             # Taking a predetermined number of inner steps before meta update.
             for inner_step in range(base_gradient_steps):
 
                 # Computing the predictions on both the support and query set.
-                fx = fmodel(X_support_query, task_embeddings, task_adaptive=True)  # Compute forward pass.
-                loss_support = loss_function(fx, y_support, relation_scores, fmodel)  # Compute learned loss.
+                fx = fmodel(X_support_query, task_adaptive=True)  # Compute forward pass.
+                loss_support = loss_function(fx, y_support, task_embeddings, fmodel)  # Compute learned loss.
                 diffopt.step(loss_support)  # Update base network weights (theta).
 
             # Computing the base network predictions on query.
             with torch.no_grad():
-                yp_query = fmodel(X_query, task_embeddings, task_adaptive=True)
+                yp_query = fmodel(X_query, task_adaptive=True)
 
             # Storing the validation performance history.
             performance_history.append(performance_metric(yp_query, y_query).item())

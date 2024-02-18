@@ -4,17 +4,15 @@ import torch
 
 class _AdaConv(torch.nn.Module):
 
-    def __init__(self, input_channels=1, num_filters=32, num_ways=5, embedding_size=32, **kwargs):
+    def __init__(self, input_channels=1, num_filters=32, num_ways=5, **kwargs):
         super(_AdaConv, self).__init__()
 
-        self.encoder = Sequential(collections.OrderedDict([
-            ("adapt1", _ConvBlock(input_channels, num_filters)),
-            ("adapt2", _ConvBlock(num_filters, num_filters)),
-            #("adapt3", _ConvBlock(num_filters, num_filters)),
-            ("adapt3", _FiLMConvBlock(num_filters, num_filters, embedding_size)),
-            ("warp3", _FiLMWarpBlock(num_filters, num_filters, embedding_size)),
-            ("adapt4", _FiLMConvBlock(num_filters, num_filters, embedding_size)),
-            ("warp", _FiLMWarpBlock(num_filters, num_filters, embedding_size)),
+        self.encoder = torch.nn.Sequential(collections.OrderedDict([
+            ("block1", _ConvBlock(input_channels, num_filters)),
+            ("block2", _ConvBlock(num_filters, num_filters)),
+            ("block3", _ConvBlock(num_filters, num_filters)),
+            ("adapt", _FiLMConvBlock(num_filters, num_filters)),
+            ("warp", _FiLMWarpBlock(num_filters, num_filters)),
             ("adaPool", torch.nn.AdaptiveAvgPool2d(1)),
             ("flatten", torch.nn.Flatten())
         ]))
@@ -30,10 +28,15 @@ class _AdaConv(torch.nn.Module):
         # Initializing the model's parameters.
         self.initialize()
 
-    def forward(self, x, task_embeddings=None, task_adaptive=False):
+    def forward(self, x, task_adaptive=False):
+
+        # Turning on the task adaptive FiLM layers.
+        for name, module in self.encoder.named_children():
+            if isinstance(module, (_FiLMConvBlock, _FiLMWarpBlock)):
+                module.task_adaptive = task_adaptive
 
         # Generating the image embeddings using the encoder.
-        z = self.encoder(x, task_embeddings, task_adaptive)
+        z = self.encoder(x)
 
         # Generating the model predictions.
         return self.classifier(z)
@@ -56,8 +59,7 @@ class _AdaConv(torch.nn.Module):
         yield from self.classifier.meta_parameters()
 
     def base_parameters(self):
-        yield from self.encoder.adapt3.base_parameters()
-        yield from self.encoder.adapt4.base_parameters()
+        yield from self.encoder.adapt.base_parameters()
         yield from self.classifier.base_parameters()
 
     def pretraining_parameters(self):
@@ -69,29 +71,6 @@ class _AdaConv(torch.nn.Module):
 # ============================================================
 # Network block definitions.
 # ============================================================
-
-
-class Sequential(torch.nn.Sequential):
-
-    def forward(self, *inputs):
-
-        if len(inputs) == 1:
-            inputs = (*inputs, None, False)
-
-        # Unpacking the input to the sequential block.
-        x, task_embeddings, task_adaptive = inputs
-
-        # Iterating over all the modules in the sequential block.
-        for module in self._modules.values():
-
-            # If FiLM Conv or Warp give all arguments (features, task embedding etc).
-            if isinstance(module, (_FiLMConvBlock, _FiLMWarpBlock)):
-                x = module(x, task_embeddings, task_adaptive)
-
-            else:  # Else just give the first argument (i.e. the latent features).
-                x = module(x)
-
-        return x
 
 
 class _ConvBlock(torch.nn.Module):
@@ -124,16 +103,16 @@ class _ConvBlock(torch.nn.Module):
         self.bn.weight.data.fill_(1)
         self.bn.bias.data.zero_()
 
-    #def meta_parameters(self):
-    #    yield from self.conv.parameters()
+    def meta_parameters(self):
+        yield from self.conv.parameters()
 
-    #def base_parameters(self):
-    #    yield from self.conv.parameters()
+    def base_parameters(self):
+        yield from self.conv.parameters()
 
 
 class _FiLMConvBlock(torch.nn.Module):
 
-    def __init__(self, in_channels, out_channels, embedding_size):
+    def __init__(self, in_channels, out_channels):
         super(_FiLMConvBlock, self).__init__()
 
         # The underlying convolutional layer.
@@ -143,7 +122,7 @@ class _FiLMConvBlock(torch.nn.Module):
         self.bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
 
         # The feature wise linear modulation (FiLM) layer for making the layer adaptive.
-        self.film = torch.nn.Linear(in_channels + embedding_size, out_channels * 2)
+        self.film = torch.nn.Linear(in_channels, out_channels * 2)
 
         # The non-linear activation function.
         self.relu = torch.nn.ReLU(inplace=True)
@@ -151,28 +130,15 @@ class _FiLMConvBlock(torch.nn.Module):
         # The pooling layer used for down-sampling the output volume.
         self.pool = torch.nn.MaxPool2d(2)
 
-    def forward(self, x, task_embeddings, task_adaptive):
+        # Field for controlling the current state of the layer.
+        self.task_adaptive = False
+
+    def forward(self, x):
 
         # Computing a forward pass on the convolutional layer.
         z = self.bn(self.conv(x))
 
-        if task_adaptive:  # If task adaptive apply Feature Wise Linear Modulation (FiLM).
-
-            # Computing the local and global embeddings.
-            local_embedding = torch.nn.functional.adaptive_avg_pool2d(x, (1, 1)).squeeze().mean(dim=0)
-            global_embedding = task_embeddings.mean(dim=0)
-
-            # Computing the gamma and beta weights and mean reducing in the batch dimension.
-            gamma, beta = self.film(torch.cat((local_embedding, global_embedding))).chunk(2)
-
-            # Expanding tensor back into the correct dimension size.
-            gamma = gamma[None, :, None, None].expand_as(z)
-            beta = beta[None, :, None, None].expand_as(z)
-
-            # Applying the scale and shift FiLM to the pre-activation output.
-            z = (1 + gamma) * z + beta
-        """
-        if task_adaptive:  # If task adaptive apply Feature Wise Linear Modulation (FiLM).
+        if self.task_adaptive:  # If task adaptive apply Feature Wise Linear Modulation (FiLM).
 
             # Computing the local and global embeddings.
             avg_channel = torch.nn.functional.adaptive_avg_pool2d(x, (1, 1))
@@ -186,7 +152,7 @@ class _FiLMConvBlock(torch.nn.Module):
 
             # Applying the scale and shift FiLM to the pre-activation output.
             z = (1 + gamma) * z + beta
-        """
+
         return self.pool(self.relu(z))
 
     def initialize(self):
@@ -206,7 +172,7 @@ class _FiLMConvBlock(torch.nn.Module):
 
 class _FiLMWarpBlock(torch.nn.Module):
 
-    def __init__(self, in_channels, out_channels, embedding_size):
+    def __init__(self, in_channels, out_channels):
         super(_FiLMWarpBlock, self).__init__()
 
         # The underlying convolutional layer (as implemented in PyTorch).
@@ -216,30 +182,17 @@ class _FiLMWarpBlock(torch.nn.Module):
         self.bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
 
         # The feature wise linear modulation (FiLM) layer for making the layer adaptive.
-        self.film = torch.nn.Linear(in_channels + embedding_size, out_channels * 2)
+        self.film = torch.nn.Linear(in_channels, out_channels * 2)
 
-    def forward(self, x, task_embeddings, task_adaptive):
+        # Field for controlling the current state of the layer.
+        self.task_adaptive = False
+
+    def forward(self, x):
 
         # Computing a forward pass on the convolutional layer.
         z = self.bn(self.conv(x))
 
-        if task_adaptive:  # If task adaptive apply Feature Wise Linear Modulation (FiLM).
-
-            # Computing the local and global embeddings.
-            local_embedding = torch.nn.functional.adaptive_avg_pool2d(x, (1, 1)).squeeze().mean(dim=0)
-            global_embedding = task_embeddings.mean(dim=0)
-
-            # Computing the gamma and beta weights and mean reducing in the batch dimension.
-            gamma, beta = self.film(torch.cat((local_embedding, global_embedding))).chunk(2)
-
-            # Expanding tensor back into the correct dimension size.
-            gamma = gamma[None, :, None, None].expand_as(z)
-            beta = beta[None, :, None, None].expand_as(z)
-
-            # Applying the scale and shift FiLM to the pre-activation output.
-            z = (1 + gamma) * z + beta
-        """
-        if task_adaptive:  # If task adaptive apply Feature Wise Linear Modulation (FiLM).
+        if self.task_adaptive:  # If task adaptive apply Feature Wise Linear Modulation (FiLM).
 
             # Computing the local and global embeddings.
             avg_channel = torch.nn.functional.adaptive_avg_pool2d(x, (1, 1))
@@ -253,7 +206,7 @@ class _FiLMWarpBlock(torch.nn.Module):
 
             # Applying the scale and shift FiLM to the pre-activation output.
             z = (1 + gamma) * z + beta
-        """
+
         return z
 
     def initialize(self):

@@ -38,12 +38,6 @@ class _ResNet(torch.nn.Module):
             if isinstance(module, _ConvBlock):
                 module.initialize()
 
-    def reset_batch_norm(self):
-        # Method for resetting the batch norm statistics.
-        for module in self.modules():
-            if hasattr(module, 'reset_running_stats'):
-                module.reset_running_stats()
-
     def meta_parameters(self):
         for module in self.encoder.children():
             if hasattr(module, "meta_parameters"):

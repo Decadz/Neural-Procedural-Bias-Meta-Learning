@@ -4,7 +4,7 @@ import torch
 
 class _RelationNetwork(torch.nn.Module):
 
-    def __init__(self, input_channels, num_ways, num_shots, test_shots, embedding_size, block_config, **kwargs):
+    def __init__(self, input_channels, num_ways, num_shots, test_shots, block_config, **kwargs):
         super(_RelationNetwork, self).__init__()
 
         # The encoder network for preprocessing the instances into embeddings.
@@ -21,12 +21,9 @@ class _RelationNetwork(torch.nn.Module):
             ("block2", _ConvBlock(block_config[3], block_config[3], downsample=True)),
             ("adaPool", torch.nn.AdaptiveAvgPool2d(1)),
             ("flatten", torch.nn.Flatten()),
-            ("linear", torch.nn.Linear(block_config[-1], embedding_size)),
+            ("linear", torch.nn.Linear(block_config[-1], 1)),
+            ("sigmoid", torch.nn.Sigmoid())
         ]))
-
-        # The relation network heads used for pretraining.
-        self.embedding_head = torch.nn.Linear(embedding_size * num_ways, embedding_size)
-        self.relation_head = torch.nn.Linear(embedding_size, num_ways)
 
         # Model configuration hyper-parameters.
         self.block_config = block_config
@@ -69,11 +66,9 @@ class _RelationNetwork(torch.nn.Module):
             # Computing the final relation scores for the current way.
             y_i = self.relation(z_support_query_i)
             relation_embeddings.append(y_i)
-        
-        # Returning the final relation scores and relation embeddings.
-        relation_embeddings = self.embedding_head(torch.cat(relation_embeddings, dim=1))
-        relation_scores = torch.nn.functional.sigmoid(self.relation_head(relation_embeddings))
-        return relation_scores, relation_embeddings
+
+        # Returning the final relation scores.
+        return torch.cat(relation_embeddings, dim=1)
 
     def initialize(self):
         # Initializing the networks parameters.

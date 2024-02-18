@@ -34,12 +34,12 @@ def meta_training_default(base_model, meta_optimizer, base_optimizer, meta_sched
                 for _ in range(base_gradient_steps):
 
                     # Computing the loss using the learned loss and updating the base weights.
-                    yp_support, _ = fmodel(X_support)  # Computing the base network predictions on support.
+                    yp_support = fmodel(X_support)  # Computing the base network predictions on support.
                     loss_support = base_loss_function(yp_support, y_support)  # Finding the loss wrt. support set.
                     diffopt.step(loss_support)  # Update base network weights (theta).
 
                 # Computing the task loss and updating the meta weights.
-                yp_query, _ = fmodel(X_query)  # Computing the base network predictions on query.
+                yp_query = fmodel(X_query)  # Computing the base network predictions on query.
                 loss_query = meta_loss_function(yp_query, y_query)  # Finding the loss wrt. query set.
                 loss_query.div_(meta_batch_size)  # Dividing the loss by the batch size.
                 loss_query.backward()  # Unrolls through the gradient steps.
@@ -83,13 +83,13 @@ def meta_testing_default(base_model, base_optimizer, dataset, base_gradient_step
             for _ in range(base_gradient_steps):
 
                 # Computing the loss using the learned loss and updating the base weights.
-                yp_support, _ = fmodel(X_support)  # Computing the base network predictions on support.
+                yp_support = fmodel(X_support)  # Computing the base network predictions on support.
                 loss_support = loss_function(yp_support, y_support)  # Finding the loss wrt. support set.
                 diffopt.step(loss_support)  # Update base network weights (theta).
 
             # Computing the base network predictions on query.
             with torch.no_grad():
-                yp_query, _ = fmodel(X_query)
+                yp_query = fmodel(X_query)
 
             # Storing the validation performance history.
             performance_history.append(performance_metric(yp_query, y_query).item())

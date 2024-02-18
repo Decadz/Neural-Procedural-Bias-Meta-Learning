@@ -1,6 +1,3 @@
-# Relation Network embedding size.
-embedding_size: 32
-
 # Meta Optimization used in Meta-Training.
 meta_gradient_steps: 100000
 meta_batch_size: 4

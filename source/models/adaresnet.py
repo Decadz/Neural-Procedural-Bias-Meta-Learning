@@ -4,17 +4,15 @@ import torch
 
 class _AdaResNet(torch.nn.Module):
 
-    def __init__(self, block_config, input_channels=3, num_ways=5, task_embedding_size=32, **kwargs):
+    def __init__(self, block_config, input_channels=3, num_ways=5, **kwargs):
         super(_AdaResNet, self).__init__()
 
         self.encoder = torch.nn.Sequential(collections.OrderedDict([
-            ("adapt1", _ConvBlock(input_channels, block_config[0])),
-            ("adapt2", _ConvBlock(block_config[0], block_config[1])),
-            ("adapt3", _ConvBlock(block_config[1], block_config[2])),
-            #("adapt3", _FiLMConvBlock(block_config[1], block_config[2], task_embedding_size)),
-            #("warp3", _FiLMWarpBlock(block_config[2], block_config[2], task_embedding_size)),
-            ("adapt4", _FiLMConvBlock(block_config[2], block_config[3], task_embedding_size)),
-            ("warp", _FiLMWarpBlock(block_config[3], block_config[3], task_embedding_size)),
+            ("block1", _ConvBlock(input_channels, block_config[0])),
+            ("block2", _ConvBlock(block_config[0], block_config[1])),
+            ("block3", _ConvBlock(block_config[1], block_config[2])),
+            ("adapt", _FiLMConvBlock(block_config[2], block_config[3])),
+            ("warp", _FiLMWarpBlock(block_config[3], block_config[3])),
             ("adaPool", torch.nn.AdaptiveAvgPool2d(1)),
             ("flatten", torch.nn.Flatten())
         ]))
@@ -30,7 +28,12 @@ class _AdaResNet(torch.nn.Module):
         # Initializing the model's parameters.
         self.initialize()
 
-    def forward(self, x):
+    def forward(self, x, task_adaptive=False):
+
+        # Turning on the task adaptive FiLM layers.
+        for name, module in self.encoder.named_children():
+            if isinstance(module, (_FiLMConvBlock, _FiLMWarpBlock)):
+                module.task_adaptive = task_adaptive
 
         # Generating the image embeddings using the encoder.
         z = self.encoder(x)
@@ -46,20 +49,9 @@ class _AdaResNet(torch.nn.Module):
             if isinstance(module, (_FiLMConvBlock, _FiLMWarpBlock)):
                 module.initialize()
 
-    def adapt_representation(self, task_embedding):
-
-        # Resetting the batch norm running statistics.
-        for module in self.modules():
-            if hasattr(module, "reset_running_stats"):
-                module.reset_running_stats()
-
-        # Distributing the task_embedding to the encoder layers.
-        for name, module in self.encoder.named_children():
-            if isinstance(module, (_FiLMConvBlock, _FiLMWarpBlock)):
-                module.adapt_representation(task_embedding)
-
+    def reset_classifier(self):
         # Resetting the output layer using the output cone.
-        self.classifier.adapt_representation(task_embedding)
+        self.classifier.reset_classifier()
 
     def meta_parameters(self):
         for module in self.encoder.children():
@@ -68,8 +60,7 @@ class _AdaResNet(torch.nn.Module):
         yield from self.classifier.meta_parameters()
 
     def base_parameters(self):
-        yield from self.encoder.adapt3.base_parameters()
-        yield from self.encoder.adapt4.base_parameters()
+        yield from self.encoder.adapt.base_parameters()
         yield from self.classifier.base_parameters()
 
     def pretraining_parameters(self):
@@ -136,16 +127,16 @@ class _ConvBlock(torch.nn.Module):
 
 class _FiLMConvBlock(torch.nn.Module):
 
-    def __init__(self, in_channels, out_channels, task_embedding_size):
+    def __init__(self, in_channels, out_channels):
         super(_FiLMConvBlock, self).__init__()
 
         # The convolutional feature extractor block, containing three filmed conv -> bn.
         self.block = torch.nn.Sequential(collections.OrderedDict([
-            ("adapt1", _FiLMConv(in_channels, out_channels, task_embedding_size)),
+            ("adapt1", _FiLMConv(in_channels, out_channels)),
             ("relu1", torch.nn.ReLU(inplace=True)),
-            ("adapt2", _FiLMConv(out_channels, out_channels, task_embedding_size)),
+            ("adapt2", _FiLMConv(out_channels, out_channels)),
             ("relu2", torch.nn.ReLU(inplace=True)),
-            ("adapt3", _FiLMConv(out_channels, out_channels, task_embedding_size)),
+            ("adapt3", _FiLMConv(out_channels, out_channels)),
         ]))
 
         # Residual (skip) connections. Cant been in sequential block since it runs in parallel.
@@ -190,7 +181,7 @@ class _FiLMConvBlock(torch.nn.Module):
 
 class _FiLMConv(torch.nn.Module):
 
-    def __init__(self, in_channels, out_channels, task_embedding_size):
+    def __init__(self, in_channels, out_channels):
         super(_FiLMConv, self).__init__()
 
         # The underlying convolutional layer (as implemented in PyTorch).
@@ -200,33 +191,38 @@ class _FiLMConv(torch.nn.Module):
         self.bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
 
         # The feature wise linear modulation (FiLM) layer for making the layer adaptive.
-        self.film = torch.nn.Linear(task_embedding_size, out_channels * 2)
+        self.film = torch.nn.Linear(in_channels, out_channels * 2)
 
-        # The multiplicative (gamma) and additive (beta) linear transformation values.
-        self.register_buffer("gamma", torch.zeros(out_channels, requires_grad=False))
-        self.register_buffer("beta", torch.zeros(out_channels, requires_grad=False))
+        # Field for controlling the current state of the layer.
+        self.task_adaptive = False
 
     def forward(self, x):
 
         # Computing a forward pass on the convolutional layer.
         z = self.bn(self.conv(x))
 
-        # Expanding the FiLM tensors back into the correct dimension size.
-        gamma = self.gamma[None, :, None, None].expand_as(z)
-        beta = self.beta[None, :, None, None].expand_as(z)
+        if self.task_adaptive:  # If task adaptive apply Feature Wise Linear Modulation (FiLM).
 
-        # Applying the FiLM to the output.
-        return (1 + gamma) * z + beta
+            # Computing the local and global embeddings.
+            avg_channel = torch.nn.functional.adaptive_avg_pool2d(x, (1, 1))
+
+            # Computing the gamma and beta weights for the FiLM.
+            gamma, beta = self.film(avg_channel.squeeze()).chunk(chunks=2, dim=1)
+
+            # Expanding in the spatial (width and height) dimension.
+            gamma = gamma[:, :, None, None].expand_as(z)
+            beta = beta[:, :, None, None].expand_as(z)
+
+            # Applying the scale and shift FiLM to the pre-activation output.
+            z = (1 + gamma) * z + beta
+
+        return z
 
     def initialize(self):
         torch.nn.init.normal_(self.conv.weight, 0, 0.01)
         torch.nn.init.normal_(self.film.weight, 0, 0.01)
         self.bn.weight.data.fill_(1)
         self.bn.bias.data.zero_()
-
-    def adapt_representation(self, task_embedding):
-        # Computing the gamma and beta weights using the given task embedding.
-        self.gamma, self.beta = self.film(task_embedding).chunk(2)
 
     def meta_parameters(self):
         yield from self.conv.parameters()
@@ -239,7 +235,7 @@ class _FiLMConv(torch.nn.Module):
 
 class _FiLMWarpBlock(torch.nn.Module):
 
-    def __init__(self, in_channels, out_channels, task_embedding_size):
+    def __init__(self, in_channels, out_channels):
         super(_FiLMWarpBlock, self).__init__()
 
         # The underlying convolutional layer (as implemented in PyTorch).
@@ -249,33 +245,38 @@ class _FiLMWarpBlock(torch.nn.Module):
         self.bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
 
         # The feature wise linear modulation (FiLM) layer for making the layer adaptive.
-        self.film = torch.nn.Linear(task_embedding_size, out_channels * 2)
+        self.film = torch.nn.Linear(in_channels, out_channels * 2)
 
-        # The multiplicative (gamma) and additive (beta) linear transformation values.
-        self.register_buffer("gamma", torch.zeros(out_channels, requires_grad=False))
-        self.register_buffer("beta", torch.zeros(out_channels, requires_grad=False))
+        # Field for controlling the current state of the layer.
+        self.task_adaptive = False
 
     def forward(self, x):
 
         # Computing a forward pass on the convolutional layer.
         z = self.bn(self.conv(x))
 
-        # Expanding tensor back into the correct dimension size.
-        gamma = self.gamma[None, :, None, None].expand_as(z)
-        beta = self.beta[None, :, None, None].expand_as(z)
+        if self.task_adaptive:  # If task adaptive apply Feature Wise Linear Modulation (FiLM).
 
-        # Applying the FiLM to the output.
-        return (1 + gamma) * z + beta
+            # Computing the local and global embeddings.
+            avg_channel = torch.nn.functional.adaptive_avg_pool2d(x, (1, 1))
+
+            # Computing the gamma and beta weights for the FiLM.
+            gamma, beta = self.film(avg_channel.squeeze()).chunk(chunks=2, dim=1)
+
+            # Expanding in the spatial (width and height) dimension.
+            gamma = gamma[:, :, None, None].expand_as(z)
+            beta = beta[:, :, None, None].expand_as(z)
+
+            # Applying the scale and shift FiLM to the pre-activation output.
+            z = (1 + gamma) * z + beta
+
+        return z
 
     def initialize(self):
         torch.nn.init.dirac_(self.conv.weight)
         torch.nn.init.normal_(self.film.weight, 0, 0.01)
         self.bn.weight.data.fill_(1)
         self.bn.bias.data.zero_()
-
-    def adapt_representation(self, task_embedding):
-        # Computing the gamma and beta weights using the given task embedding.
-        self.gamma, self.beta = self.film(task_embedding).chunk(2)
 
     def meta_parameters(self):
         yield from self.conv.parameters()
@@ -305,7 +306,7 @@ class _PermutationInvariantClassifier(torch.nn.Module):
         self.output_layer.bias.data.zero_()
         self.output_cone.bias.data.zero_()
 
-    def adapt_representation(self, task_embedding):
+    def reset_classifier(self):
         # Generating the permutation invariant head by copying output cone into the output layer.
         self.output_layer.weight.data = self.output_cone.weight.data.repeat(self.out_features, 1)
         self.output_layer.bias.data = self.output_cone.bias.data.repeat(self.out_features)

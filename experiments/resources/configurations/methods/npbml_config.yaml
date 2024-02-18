@@ -1,6 +1,5 @@
 # NPBML Few-Shot Learning Settings.
 pretrained_backbone: True
-embedding_size: 32
 
 # Meta Optimization used in Meta-Training.
 meta_gradient_steps: 60000

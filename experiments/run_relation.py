@@ -59,9 +59,6 @@ def _run_experiment(dataset, model, config, random_state):
     # Creating the base model.
     base_model = model(**config).to(device)
 
-    print(sum(p.numel() for p in base_model.parameters()))
-    exit()
-
     # Creating the optimizer and learning rate schedule.
     optimizer = optimizer_archive[config["meta_optimizer_name"]](
         list(base_model.parameters()), **config["meta_optimizer_settings"])

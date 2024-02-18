@@ -49,8 +49,6 @@ def register_configurations(parser):
     parser.add_argument("--pretraining_batch_size", required=False, type=int,
                         help="The batch size used when performing pretraining (does not effect"
                              " meta-learning related scripts).")
-    parser.add_argument("--embedding_size", required=False, type=int,
-                        help="Global embedding size for the relation network.")
 
     # Learning Objectives and Performance Metric.
     parser.add_argument("--performance_metric", required=False, type=str,
