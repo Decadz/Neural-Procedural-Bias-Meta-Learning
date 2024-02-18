@@ -10,10 +10,11 @@ class _AdaResNet(torch.nn.Module):
         self.encoder = torch.nn.Sequential(collections.OrderedDict([
             ("adapt1", _ConvBlock(input_channels, block_config[0])),
             ("adapt2", _ConvBlock(block_config[0], block_config[1])),
-            ("adapt3", _FiLMConvBlock(block_config[1], block_config[2], task_embedding_size)),
-            ("warp3", _FiLMWarpBlock(block_config[2], block_config[2], task_embedding_size)),
+            ("adapt3", _ConvBlock(block_config[1], block_config[2])),
+            #("adapt3", _FiLMConvBlock(block_config[1], block_config[2], task_embedding_size)),
+            #("warp3", _FiLMWarpBlock(block_config[2], block_config[2], task_embedding_size)),
             ("adapt4", _FiLMConvBlock(block_config[2], block_config[3], task_embedding_size)),
-            ("warp4", _FiLMWarpBlock(block_config[3], block_config[3], task_embedding_size)),
+            ("warp", _FiLMWarpBlock(block_config[3], block_config[3], task_embedding_size)),
             ("adaPool", torch.nn.AdaptiveAvgPool2d(1)),
             ("flatten", torch.nn.Flatten())
         ]))
@@ -35,7 +36,7 @@ class _AdaResNet(torch.nn.Module):
         z = self.encoder(x)
 
         # Generating the model predictions.
-        return self.classifier(z), z
+        return self.classifier(z)
 
     def initialize(self):
 
@@ -102,8 +103,10 @@ class _ConvBlock(torch.nn.Module):
         # Residual (skip) connections. Cant been in sequential block since it runs in parallel.
         self.res_conv = torch.nn.Conv2d(in_channels, out_channels, 1, 1, padding=0)
         self.res_bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
-        self.res_relu = torch.nn.ReLU(inplace=True)
-        self.res_pool = torch.nn.MaxPool2d(2)
+
+        # Block non-linearity and down-sampling layer.
+        self.relu = torch.nn.ReLU(inplace=True)
+        self.pool = torch.nn.MaxPool2d(2)
 
         # Block configurations and hyper-parameters.
         self.in_planes = in_channels
@@ -112,7 +115,7 @@ class _ConvBlock(torch.nn.Module):
     def forward(self, x):
         out = self.block(x)
         res = self.res_bn(self.res_conv(x))
-        return self.res_pool(self.res_relu(out + res))
+        return self.pool(self.relu(out + res))
 
     def initialize(self):
         for module in self.modules():
@@ -148,8 +151,10 @@ class _FiLMConvBlock(torch.nn.Module):
         # Residual (skip) connections. Cant been in sequential block since it runs in parallel.
         self.res_conv = torch.nn.Conv2d(in_channels, out_channels, 1, 1, padding=0)
         self.res_bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
-        self.res_relu = torch.nn.ReLU(inplace=True)
-        self.res_pool = torch.nn.MaxPool2d(2)
+
+        # Block non-linearity and down-sampling layer.
+        self.relu = torch.nn.ReLU(inplace=True)
+        self.pool = torch.nn.MaxPool2d(2)
 
         # Block configurations and hyper-parameters.
         self.in_planes = in_channels
@@ -158,7 +163,7 @@ class _FiLMConvBlock(torch.nn.Module):
     def forward(self, x):
         out = self.block(x)
         res = self.res_bn(self.res_conv(x))
-        return self.res_pool(self.res_relu(out + res))
+        return self.pool(self.relu(out + res))
 
     def initialize(self):
         # Initializing the sequential block.
@@ -229,6 +234,7 @@ class _FiLMConv(torch.nn.Module):
 
     def base_parameters(self):
         yield from self.conv.parameters()
+        yield from self.film.parameters()
 
 
 class _FiLMWarpBlock(torch.nn.Module):

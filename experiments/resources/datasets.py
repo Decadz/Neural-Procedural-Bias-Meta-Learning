@@ -417,4 +417,12 @@ class _DataLoader:
         bs = self.sampler.num_ways * self.sampler.num_shots  # Computing the base batch size.
         X_support, y_support, X_query, y_query = X[:bs], y[:bs], X[bs:], y[bs:]
 
+        # Generating the sorted indices for the support and query sets.
+        sorted_support_indices = torch.argsort(y_support)
+        sorted_query_indices = torch.argsort(y_query)
+
+        # Sorting the indices such that the classes are now grouped.
+        X_support, y_support = X_support[sorted_support_indices], y_support[sorted_support_indices]
+        X_query, y_query = X_query[sorted_query_indices], y_query[sorted_query_indices]
+
         return X_support, y_support, X_query, y_query

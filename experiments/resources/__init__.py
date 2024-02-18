@@ -66,11 +66,12 @@ method_config_archive = {
     "warpgrad": method_config_path + "warpgrad_config.yaml",
     "npbml": method_config_path + "npbml_config.yaml",
     "pretraining": method_config_path + "pretraining_config.yaml",
+    "relation": method_config_path + "relation_config.yaml",
 }
 
 objective_archive = {
     "errorrate": ErrorRate(),
-    "accuracy": Accuracy(),
+    "accuracy": Accuracy(),  # Note, if you use this you need to update checkpointers to maximizing.
     "nllloss": torch.nn.NLLLoss(),
     "bceloss": torch.nn.BCELoss(),
     "mseloss": torch.nn.MSELoss(),

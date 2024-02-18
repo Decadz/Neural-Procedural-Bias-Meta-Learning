@@ -66,12 +66,43 @@ def _run_experiment(dataset, model, config, random_state):
         # Loading the base model's state dictionary from the .pth file
         base_model_state_dict = torch.load(pretrained_directory + file_name, map_location=torch.device('cpu'))
 
+        #base_model_state_dict = {key: value for key, value in base_model_state_dict.items() if
+        #                       all(keyword not in key for keyword in ["gamma", "beta"])}
+
         # Creating a base model instances and loading in the state dictionary.
         base_model = model(**config).to(device)
         base_model.load_state_dict(base_model_state_dict)
 
+        """
+        # Specify the layers for which you want to turn off gradient tracking
+        layers_to_freeze = [
+            base_model.encoder.adapt1,
+            base_model.encoder.adapt2,
+            base_model.encoder.adapt3,
+            base_model.encoder.adapt4,
+            base_model.encoder.warp3,
+            base_model.encoder.warp4,
+        ]
+
+        # Disable gradient tracking for the specified layers
+        for layer in layers_to_freeze:
+            for param in layer.parameters():
+                param.requires_grad = False
+        """
+
     else:  # If we are using an untrained backbone.
         base_model = model(**config).to(device)
+
+    # Loading the base model's state dictionary from the .pth file
+    task_encoder_state_dict = torch.load(
+        "source/models/pretrained/" + args.dataset + "/" + args.dataset +
+        "-relationnet-" + str(config["num_ways"]) + "way.pth",
+        map_location=torch.device('cpu')
+    )
+
+    # Creating a base model instances and loading in the state dictionary.
+    task_encoder = RelationNetwork(**config).to(device)
+    task_encoder.load_state_dict(task_encoder_state_dict)
 
     # Creating the meta learned loss function.
     learned_loss = AdaLossNetwork(model=base_model, **config).to(device)
@@ -100,8 +131,8 @@ def _run_experiment(dataset, model, config, random_state):
     # Performing the meta-training phase.
     meta_training_history, base_model, learned_loss = meta_training_npbml(
         base_model, meta_optimizer, base_optimizer, meta_scheduler, training, validation,
+        task_encoder=task_encoder, base_loss_function=learned_loss,
         meta_loss_function=objective_archive[config["meta_loss_fn"]],
-        base_loss_function=learned_loss,
         performance_metric=objective_archive[config["evaluation_metric"]],
         **config
     )
@@ -115,14 +146,12 @@ def _run_experiment(dataset, model, config, random_state):
 
     # Performing the meta-testing phase.
     results["training_mean"], results["training_ci"] = meta_testing_npbml(
-        base_model, base_optimizer, training, loss_function=learned_loss,
-        performance_metric=objective_archive[config["evaluation_metric"]],
-        **config
+        base_model, base_optimizer, training, task_encoder=task_encoder, loss_function=learned_loss,
+        performance_metric=objective_archive[config["evaluation_metric"]], **config
     )
     results["testing_mean"], results["testing_ci"] = meta_testing_npbml(
-        base_model, base_optimizer, testing, loss_function=learned_loss,
-        performance_metric=objective_archive[config["evaluation_metric"]],
-        **config
+        base_model, base_optimizer, testing, task_encoder=task_encoder, loss_function=learned_loss,
+        performance_metric=objective_archive[config["evaluation_metric"]], **config
     )
 
     # Recording the experiment configurations.

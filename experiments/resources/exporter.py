@@ -61,6 +61,11 @@ def _export_file(results, file_name):
     del results["experiment_configuration"]["output_path"]
     del results["experiment_configuration"]["verbose"]
 
+    if "description" in results["experiment_configuration"]:
+        # Converting description to a string.
+        results["experiment_configuration"]["description"] = \
+            ' '.join(results["experiment_configuration"]["description"])
+
     def _format_dictionary(dictionary, level=0, indent=4):
         string = ""
         if isinstance(dictionary, dict):

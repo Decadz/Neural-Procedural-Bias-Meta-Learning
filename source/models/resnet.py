@@ -29,7 +29,7 @@ class _ResNet(torch.nn.Module):
 
     def forward(self, x):
         z = self.encoder(x)
-        return self.classifier(z), z
+        return self.classifier(z)
 
     def initialize(self):
         # Initializing the networks parameters.
@@ -72,7 +72,7 @@ class _ConvBlock(torch.nn.Module):
     def __init__(self, in_channels, out_channels):
         super(_ConvBlock, self).__init__()
 
-        # The convolutional feature extractor block, containing three filmed conv -> bn.
+        # The convolutional feature extractor block, containing three conv -> bn.
         self.block = torch.nn.Sequential(collections.OrderedDict([
             ("adapt1", torch.nn.Conv2d(in_channels, out_channels, 3, padding=1, bias=False)),
             ("bn1", torch.nn.BatchNorm2d(out_channels, track_running_stats=False)),
@@ -87,8 +87,10 @@ class _ConvBlock(torch.nn.Module):
         # Residual (skip) connections. Cant been in sequential block since it runs in parallel.
         self.res_conv = torch.nn.Conv2d(in_channels, out_channels, 1, 1, padding=0, bias=False)
         self.res_bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
-        self.res_relu = torch.nn.ReLU(inplace=True)
-        self.res_pool = torch.nn.MaxPool2d(2)
+
+        # Block non-linearity and down-sampling layer.
+        self.relu = torch.nn.ReLU(inplace=True)
+        self.pool = torch.nn.MaxPool2d(2)
 
         # Block configurations and hyper-parameters.
         self.in_planes = in_channels
@@ -97,7 +99,7 @@ class _ConvBlock(torch.nn.Module):
     def forward(self, x):
         out = self.block(x)
         res = self.res_bn(self.res_conv(x))
-        return self.res_pool(self.res_relu(out + res))
+        return self.pool(self.relu(out + res))
 
     def initialize(self):
         # Initializing the sequential block.

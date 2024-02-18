@@ -15,36 +15,36 @@ class AdaLossNetwork(torch.nn.Module):
 
         # Defining the inductive loss networks architecture.
         self.inductive_network = torch.nn.Sequential(collections.OrderedDict([
-            ("block1", _FiLMLinearBlock(num_ways * 2 + 1, num_ways * 2 + 1, torch.nn.ReLU)),
-            ("block2", _FiLMLinearBlock(num_ways * 2 + 1, num_ways * 2 + 1, torch.nn.ReLU)),
-            ("block3", _FiLMLinearBlock(num_ways * 2 + 1, 1, SmoothLeakyRelU))
+            ("block1", _FiLMLinearBlock(num_ways * 2 + 1, 40, torch.nn.ReLU)),
+            ("block2", _FiLMLinearBlock(40, 40, torch.nn.ReLU)),
+            ("block3", _FiLMLinearBlock(40, 1, SmoothLeakyRelU))
         ]))
 
         # Defining the transductive loss networks architecture.
         self.transductive_network = torch.nn.Sequential(collections.OrderedDict([
-            ("block1", _FiLMLinearBlock(num_ways * 2 + 1, num_ways * 2 + 1, torch.nn.ReLU)),
-            ("block2", _FiLMLinearBlock(num_ways * 2 + 1, num_ways * 2 + 1, torch.nn.ReLU)),
-            ("block3", _FiLMLinearBlock(num_ways * 2 + 1, 1, SmoothLeakyRelU))
+            ("block1", _FiLMLinearBlock(num_ways * 2 + 1, 40, torch.nn.ReLU)),
+            ("block2", _FiLMLinearBlock(40, 40, torch.nn.ReLU)),
+            ("block3", _FiLMLinearBlock(40, 1, SmoothLeakyRelU))
         ]))
 
         # Defining the regularization penalty networks architecture.
         layer_width = len(list(model.base_parameters())) * 4
         self.regularization_network = torch.nn.Sequential(collections.OrderedDict([
-            ("block1", _FiLMLinearBlock(layer_width, layer_width, torch.nn.ReLU)),
-            ("block2", _FiLMLinearBlock(layer_width, layer_width, torch.nn.ReLU)),
-            ("block3", _FiLMLinearBlock(layer_width, 1, SmoothLeakyRelU))
+            ("block1", _FiLMLinearBlock(layer_width, 40, torch.nn.ReLU)),
+            ("block2", _FiLMLinearBlock(40, 40, torch.nn.ReLU)),
+            ("block3", _FiLMLinearBlock(40, 1, SmoothLeakyRelU))
         ]))
 
         # Initializing the loss networks parameters.
         self.initialize()
         
-    def forward(self, fx, z, y, model):
+    def forward(self, fx, y, relation_scores, model):
 
         # Calculating the inductive learned loss value.
         inductive_loss = self._calculate_inductive_loss(fx, y)
 
         # Calculating the transductive learned loss value.
-        transductive_loss = self._calculate_transductive_loss(fx, z)
+        transductive_loss = self._calculate_transductive_loss(fx, relation_scores)
 
         # Calculating the learned regularization penalty.
         regularization_penalty = self._calculate_regularization_penalty(model)
@@ -72,25 +72,28 @@ class AdaLossNetwork(torch.nn.Module):
         # Reducing the vector of learned loss values into a scalar.
         return self._reduce_output(learned_inductive_loss)
 
-    def _calculate_transductive_loss(self, fx, z):
+    def _calculate_transductive_loss(self, fx, relation_scores):
 
         # Partitioning out the support and query embeddings from z, and query predictions from f(x).
-        z_support, z_query = torch.split(z, [self.num_shots * self.num_ways, self.test_shots * self.num_ways], dim=0)
+        #z_support, z_query = torch.split(z, [self.num_shots * self.num_ways, self.test_shots * self.num_ways], dim=0)
         _, fx_query = torch.split(fx, [self.num_shots * self.num_ways, self.test_shots * self.num_ways], dim=0)
 
+        """
         # Computing the prototypes for each of the ways (classes).
-        prototypes = z_support.reshape(self.num_shots, self.num_ways, -1).mean(dim=0)
+        prototypes = z_support.reshape(self.num_shots, self.num_ways, -1).mean(dim=1)
 
         # Computing each query instances euclidean distance to each of the prototypes.
         query = z_query.unsqueeze(1).expand(z_query.shape[0], prototypes.shape[0], -1)
         prototypes = prototypes.unsqueeze(0).expand(query.shape[0], prototypes.shape[0], -1)
         y_approx = - ((query - prototypes) ** 2).sum(dim=2)
+        """
 
         # Computing the cross entropy which is given as an input to the inductive loss.
-        cross_entropy = torch.nn.functional.cross_entropy(fx_query, y_approx, reduction="none").unsqueeze(1)
+        relation_scores_int = torch.argmax(relation_scores, dim=1)
+        cross_entropy = torch.nn.functional.cross_entropy(fx_query, relation_scores_int, reduction="none").unsqueeze(1)
 
         # Computing the learned loss for each instance.
-        learned_transductive_loss = self.inductive_network(torch.cat((fx_query, y_approx, cross_entropy), dim=1))
+        learned_transductive_loss = self.inductive_network(torch.cat((fx_query, relation_scores, cross_entropy), dim=1))
 
         # Reducing the vector of learned loss values into a scalar.
         return self._reduce_output(learned_transductive_loss)

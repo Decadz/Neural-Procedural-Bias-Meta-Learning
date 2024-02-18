@@ -13,7 +13,7 @@ import time
 import yaml
 import tqdm
 
-# python experiments/run_npbml.py --dataset miniimagenet --model adaconv32 --num_ways 5 --num_shots 5 --meta_batch_size 2 --pretrained_backbone True --seeds 0 --device cuda:0
+# python experiments/run_testing.py --dataset miniimagenet --model adaconv32 --num_ways 5 --num_shots 5 --meta_batch_size 2 --seeds 0 --device cuda:0
 
 # Use the GPU/CUDA when available, else use the CPU.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -74,14 +74,11 @@ def _run_experiment(dataset, model, config, random_state):
     learned_loss_state_dictionary = torch.load(res_directory + "losses/" + file_name, map_location=torch.device('cpu'))
 
     # Creating the meta learned loss function.
-    learned_loss = AdaLossNetwork(
-        num_ways=config["num_ways"],
-        task_loss_fn=objective_archive[config["meta_loss_fn"]]
-    ).to(device)
+    learned_loss = AdaLossNetwork(model=base_model, **config).to(device)
 
     # Defining the output results directory and file name.
     res_directory = directory + config["output_path"]
-    file_name = "testing-" + args.dataset + "-" + args.model + "-" + \
+    file_name = "npbml-testing-" + args.dataset + "-" + args.model + "-" + \
                 str(config["num_ways"]) + "way-" + str(config["num_shots"]) + "shot-" + str(random_state)
 
     # Creating a results dictionary and recording the start time of the experiment.
@@ -89,13 +86,12 @@ def _run_experiment(dataset, model, config, random_state):
     print("meta-testing", args.dataset, args.model, "seed", str(random_state), "started")
 
     # Performing the meta-testing phase.
-    results["training_mean"], results["training_ci"] = _meta_testing(
+    training_mean, training_ci = _meta_testing(
         base_model=base_model, base_model_state_dictionary=base_model_state_dictionary,
         loss_function=learned_loss, loss_function_state_dictionary=learned_loss_state_dictionary,
         dataset=training, performance_metric=objective_archive[config["evaluation_metric"]], config=config
     )
-
-    results["testing_mean"], results["testing_ci"] = _meta_testing(
+    testing_mean, testing_ci = _meta_testing(
         base_model=base_model, base_model_state_dictionary=base_model_state_dictionary,
         loss_function=learned_loss, loss_function_state_dictionary=learned_loss_state_dictionary,
         dataset=testing, performance_metric=objective_archive[config["evaluation_metric"]], config=config
@@ -104,6 +100,12 @@ def _run_experiment(dataset, model, config, random_state):
     # Recording the end of the meta-training phase.
     results["end_time"] = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
+    # Recording the training and testing performance.
+    results["training_mean"], results["training_ci"] = training_mean, training_ci
+    results["testing_mean"], results["testing_ci"] = testing_mean, testing_ci
+    print("Training Performance:", results["training_mean"])
+    print("Testing Performance:", results["testing_mean"])
+
     # Recording the experiment configurations.
     results["experiment_configuration"] = config.copy()
 
@@ -111,10 +113,7 @@ def _run_experiment(dataset, model, config, random_state):
     results["command"] = "python " + " ".join(sys.argv)  # Recording the python command used.
 
     # Exporting the results to a json file.
-    #export_results(results, res_directory, file_name)
-    print("Training Performance:", results["training_mean"])
-    print("Testing Performance:", results["testing_mean"])
-
+    export_results(results, res_directory, file_name)
     print("meta-testing", args.dataset, args.model, "seed", str(random_state), "complete")
 
 
@@ -123,7 +122,7 @@ def _meta_testing(base_model, base_model_state_dictionary, loss_function, loss_f
 
     # List for keeping track of the learning history.
     performance_history = []
-
+    
     for _ in (tqdm.tqdm(range(config["test_tasks"]), position=1, dynamic_ncols=True, desc="Validating Performance",
                         disable=True if config["verbose"] <= 1 else False, leave=False)):
 
@@ -135,13 +134,14 @@ def _meta_testing(base_model, base_model_state_dictionary, loss_function, loss_f
         base_optimizer = optimizer_archive[config["base_optimizer_name"]](
             base_model.base_parameters(), **config["base_optimizer_settings"])
 
-        # base_optimizer = type(base_optimizer)(base_model.parameters(), **base_optimizer.defaults)
-
         # Sampling a batch of support and query instances.
         X_support, y_support, X_query, y_query = next(dataset)
 
-        # Resetting the running statistics for all batch normalization layers.
-        base_model.reset_batch_norm()
+        # Merging the support and query into one batch.
+        X_support_query = torch.cat((X_support, X_query), dim=0)
+
+        # Resetting the classification head to ensure permutation invariance.
+        base_model.reset_classifier()
 
         # Taking a predetermined number of inner steps before meta update.
         for inner_step in range(config["base_gradient_steps"]):
@@ -150,15 +150,16 @@ def _meta_testing(base_model, base_model_state_dictionary, loss_function, loss_f
             base_optimizer.zero_grad()
 
             # Computing the predictions on support set and computing the loss.
-            yp_support = base_model(X_support, inner_step == 0)
-            loss_support = loss_function(yp_support, y_support, inner_step)
+            fx, z = base_model(X_support_query)
+            loss_support = loss_function(fx, z, y_support, base_model)
 
             # Updating the model weights.
-            loss_support.backward(retain_graph=True)
+            loss_support.backward()
             base_optimizer.step()
 
         # Computing the base network predictions on query set.
-        yp_query = base_model(X_query).detach()
+        with torch.no_grad():
+            yp_query, _ = base_model(X_query)
 
         # Storing the validation performance history.
         performance_history.append(performance_metric(yp_query, y_query).item())

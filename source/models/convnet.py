@@ -29,7 +29,7 @@ class _Conv(torch.nn.Module):
 
     def forward(self, x):
         z = self.encoder(x)
-        return self.classifier(z), z
+        return self.classifier(z)
 
     def initialize(self):
         # Initializing the networks parameters.

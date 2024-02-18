@@ -56,6 +56,8 @@ python experiments/run_npbml.py --dataset tieredimagenet --model adaresnet --num
 python experiments/run_npbml.py --dataset tieredimagenet --model adaresnet --num_ways 5 --num_shots 5 --meta_batch_size 2 --seeds 0 --device cuda:0
 
 # Pretrained Backbone Experiments.
+python experiments/run_relation.py --dataset miniimagenet --model relationnet --seeds 0 --device cuda:0
+
 python experiments/run_pretraining.py --dataset omniglot --model adaconv64 --num_ways 5 --seeds 0 --device cuda:0
 python experiments/run_pretraining.py --dataset omniglot --model adaconv64 --num_ways 20 --seeds 0 --device cuda:0
 

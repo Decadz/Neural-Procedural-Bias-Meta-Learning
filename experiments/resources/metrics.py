@@ -15,6 +15,7 @@ class ErrorRate:
         return torch.tensor(1 - (correct / (correct + incorrect)))
 
 
+# Note, if you use this you need to update checkpointers to maximizing.
 class Accuracy:
 
     def __call__(self, pred, true):

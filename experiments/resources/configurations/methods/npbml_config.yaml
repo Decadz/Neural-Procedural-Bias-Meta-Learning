@@ -1,18 +1,19 @@
 # NPBML Few-Shot Learning Settings.
 pretrained_backbone: True
+embedding_size: 32
 
 # Meta Optimization used in Meta-Training.
 meta_gradient_steps: 60000
 meta_batch_size: 4
 meta_optimizer_name: "adam"
 meta_optimizer_settings:
-  lr: 0.001
+  lr: 0.00001
 
 # Meta-Scheduler used in Meta-Training
 meta_scheduler_name: "cosine"
 meta_scheduler_settings:
   T_max: 60000
-  eta_min: 0.00001
+  eta_min: 0.000001
 
 # Base Optimization used in Meta-Training.
 base_gradient_steps: 5

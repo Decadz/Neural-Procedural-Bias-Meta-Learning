@@ -49,7 +49,7 @@ def pretrain(model, optimizer, scheduler, training, validation, num_ways, num_sh
         X, y = X.to(device), y.to(device)
 
         # Performing inference and computing the loss.
-        y_pred, _ = model(X)
+        y_pred = model(X)
         loss = loss_function(y_pred, y)
 
         # Performing the backward pass and gradient step/update.
@@ -118,7 +118,7 @@ class _StateCheckpointer(torch.nn.Module):
                 query = base_model.encoder(X_query)
 
                 # Computing the prototypes for each of the ways (classes).
-                prototypes = support.reshape(self.num_shots, self.num_ways, -1).mean(dim=0)
+                prototypes = support.reshape(self.num_shots, self.num_ways, -1).mean(dim=1)
 
                 # Computing each query instances euclidean distance to each of the prototypes.
                 query = query.unsqueeze(1).expand(query.shape[0], prototypes.shape[0], -1)
