@@ -53,17 +53,21 @@ class _AdaConv(torch.nn.Module):
         self.classifier.reset_classifier()
 
     def meta_parameters(self):
-        for module in self.encoder.children():
+        for name, module in self.encoder.named_children():
             if hasattr(module, "meta_parameters"):
-                yield from module.meta_parameters()
+                if isinstance(module, (_FiLMConvBlock, _FiLMWarpBlock)):
+                    yield from module.meta_parameters()
         yield from self.classifier.meta_parameters()
 
     def base_parameters(self):
-        yield from self.encoder.adapt.base_parameters()
+        for name, module in self.encoder.named_children():
+            if hasattr(module, "base_parameters"):
+                if isinstance(module, _FiLMConvBlock):
+                    yield from module.base_parameters()
         yield from self.classifier.base_parameters()
 
     def pretraining_parameters(self):
-        for module in self.encoder.children():
+        for name, module in self.encoder.named_children():
             if hasattr(module, "base_parameters"):
                 yield from module.base_parameters()
         yield from self.classifier.base_parameters()
@@ -102,9 +106,6 @@ class _ConvBlock(torch.nn.Module):
         torch.nn.init.normal_(self.conv.weight, 0, 0.01)
         self.bn.weight.data.fill_(1)
         self.bn.bias.data.zero_()
-
-    def meta_parameters(self):
-        yield from self.conv.parameters()
 
     def base_parameters(self):
         yield from self.conv.parameters()

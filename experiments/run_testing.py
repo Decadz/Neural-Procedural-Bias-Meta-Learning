@@ -13,7 +13,7 @@ import time
 import yaml
 import tqdm
 
-# python experiments/run_testing.py --dataset miniimagenet --model adaconv32 --num_ways 5 --num_shots 5 --meta_batch_size 2 --seeds 0 --device cuda:0
+# python experiments/run_testing.py --dataset miniimagenet --model adaconv128 --num_ways 5 --num_shots 5 --meta_batch_size 2 --seeds 1000 --device cuda:0
 
 # Use the GPU/CUDA when available, else use the CPU.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -76,6 +76,17 @@ def _run_experiment(dataset, model, config, random_state):
     # Creating the meta learned loss function.
     learned_loss = AdaLossNetwork(model=base_model, **config).to(device)
 
+    # Loading the base model's state dictionary from the .pth file
+    task_encoder_state_dict = torch.load(
+        "source/models/pretrained/" + args.dataset + "/" + args.dataset +
+        "-relationnet-" + str(config["num_ways"]) + "way.pth",
+        map_location=torch.device('cpu')
+    )
+
+    # Creating a base model instances and loading in the state dictionary.
+    task_encoder = RelationNetwork(**config).to(device)
+    task_encoder.load_state_dict(task_encoder_state_dict)
+
     # Defining the output results directory and file name.
     res_directory = directory + config["output_path"]
     file_name = "npbml-testing-" + args.dataset + "-" + args.model + "-" + \
@@ -89,12 +100,14 @@ def _run_experiment(dataset, model, config, random_state):
     training_mean, training_ci = _meta_testing(
         base_model=base_model, base_model_state_dictionary=base_model_state_dictionary,
         loss_function=learned_loss, loss_function_state_dictionary=learned_loss_state_dictionary,
-        dataset=training, performance_metric=objective_archive[config["evaluation_metric"]], config=config
+        dataset=training, task_encoder=task_encoder, config=config,
+        performance_metric=objective_archive[config["evaluation_metric"]]
     )
     testing_mean, testing_ci = _meta_testing(
         base_model=base_model, base_model_state_dictionary=base_model_state_dictionary,
         loss_function=learned_loss, loss_function_state_dictionary=learned_loss_state_dictionary,
-        dataset=testing, performance_metric=objective_archive[config["evaluation_metric"]], config=config
+        dataset=testing,  task_encoder=task_encoder, config=config,
+        performance_metric=objective_archive[config["evaluation_metric"]]
     )
 
     # Recording the end of the meta-training phase.
@@ -118,7 +131,7 @@ def _run_experiment(dataset, model, config, random_state):
 
 
 def _meta_testing(base_model, base_model_state_dictionary, loss_function, loss_function_state_dictionary,
-                  dataset, performance_metric, config):
+                  dataset, task_encoder, performance_metric, config):
 
     # List for keeping track of the learning history.
     performance_history = []
@@ -143,6 +156,10 @@ def _meta_testing(base_model, base_model_state_dictionary, loss_function, loss_f
         # Resetting the classification head to ensure permutation invariance.
         base_model.reset_classifier()
 
+        # Generating the global task embedding and relation scores.
+        with torch.no_grad():
+            task_embeddings = task_encoder(X_support_query)
+
         # Taking a predetermined number of inner steps before meta update.
         for inner_step in range(config["base_gradient_steps"]):
 
@@ -150,8 +167,8 @@ def _meta_testing(base_model, base_model_state_dictionary, loss_function, loss_f
             base_optimizer.zero_grad()
 
             # Computing the predictions on support set and computing the loss.
-            fx, z = base_model(X_support_query)
-            loss_support = loss_function(fx, z, y_support, base_model)
+            fx = base_model(X_support_query, task_adaptive=True)
+            loss_support = loss_function(fx, y_support, task_embeddings, base_model)
 
             # Updating the model weights.
             loss_support.backward()
@@ -159,7 +176,7 @@ def _meta_testing(base_model, base_model_state_dictionary, loss_function, loss_f
 
         # Computing the base network predictions on query set.
         with torch.no_grad():
-            yp_query, _ = base_model(X_query)
+            yp_query = base_model(X_query, task_adaptive=True)
 
         # Storing the validation performance history.
         performance_history.append(performance_metric(yp_query, y_query).item())

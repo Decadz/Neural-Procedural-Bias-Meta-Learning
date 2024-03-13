@@ -8,22 +8,22 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def main():
-    #plot_learning_curve()
-    plot_pretraining_learning_curve()
+    plot_learning_curve()
+    #plot_pretraining_learning_curve()
 
 
 def plot_learning_curve():
 
     paths = [
-        #"results/miniimagenet_v11/npbml-miniimagenet-adaconv32-5way-5shot-14.json",
-        #"results/miniimagenet_v11/npbml-miniimagenet-adaconv48-5way-5shot-14.json",
-        #"results/miniimagenet_v11/npbml-miniimagenet-adaconv64-5way-5shot-14.json",
-        #"results/miniimagenet_v11/npbml-miniimagenet-adaconv128-5way-5shot-14.json",
-
-        "results/miniimagenet_v13/npbml-miniimagenet-adaconv128-5way-5shot-0.json",
-        "results/miniimagenet_v13/npbml-miniimagenet-adaconv128-5way-5shot-100.json",
-        "results/miniimagenet_v13/npbml-miniimagenet-adaconv128-5way-5shot-101.json",
-        "results/miniimagenet_v13/npbml-miniimagenet-adaconv128-5way-5shot-102.json",
+        #"results/miniimagenet/npbml-miniimagenet-adaresnet-5way-5shot-0.json",
+        #"results/miniimagenet/npbml-miniimagenet-adaresnet-5way-5shot-1.json",
+        #"results/miniimagenet/npbml-miniimagenet-adaresnet-5way-5shot-2.json",
+        #"results/miniimagenet/npbml-miniimagenet-adaresnet-5way-5shot-3.json",
+        "results/miniimagenet/npbml-miniimagenet-adaconv128-5way-5shot-2.json",
+        "results/miniimagenet/npbml-miniimagenet-adaconv128-5way-5shot-1000.json",
+        "results/miniimagenet/npbml-miniimagenet-adaconv128-5way-5shot-1001.json",
+        "results/miniimagenet/npbml-miniimagenet-adaconv128-5way-5shot-1002.json",
+        "results/miniimagenet/npbml-miniimagenet-adaconv128-5way-5shot-1003.json",
     ]
 
     # Setting the plot settings.
@@ -33,7 +33,7 @@ def plot_learning_curve():
     plt.rcParams["figure.figsize"] = (4.25, 5)  # (8, 4.5)
 
     # Name of the methods and their respective plotting colors.
-    method_names = ["32", "48", "64", "128", "32 (New)", "48 (New)", "64 (New)", "128 (New)"]
+    method_names = ["baseline", "all film expand", "all film no expand", "partial film expand", "partial film no expand"]
 
     # Iterating over the different methods.
     for path, method in zip(paths, method_names):
@@ -61,16 +61,15 @@ def plot_learning_curve():
 def plot_pretraining_learning_curve():
 
     paths = [
-        #"results/miniimagenet_v13/pretraining-miniimagenet-adaconv32-5way.json",
-        #"results/miniimagenet_v13/pretraining-miniimagenet-adaconv48-5way.json",
-        #"results/miniimagenet_v13/pretraining-miniimagenet-adaconv64-5way.json",
-        #"results/miniimagenet_v13/pretraining-miniimagenet-adaconv128-5way.json",
-        "results/miniimagenet_v13/pretraining-miniimagenet-relationnet-5way.json",
-        "results/miniimagenet_v13/pretraining-miniimagenet-relationnet-5way-1.json",
-        "results/miniimagenet_v13/pretraining-miniimagenet-relationnet-5way-2.json",
-        "results/miniimagenet_v13/pretraining-miniimagenet-relationnet-5way-3.json",
-        "results/miniimagenet_v13/pretraining-miniimagenet-relationnet-5way-3.json",
-
+        #"results/miniimagenet/pretraining-miniimagenet-adaconv32-5way.json",
+        #"results/miniimagenet/pretraining-miniimagenet-adaconv48-5way.json",
+        #"results/miniimagenet/pretraining-miniimagenet-adaconv64-5way.json",
+        #"results/miniimagenet/pretraining-miniimagenet-adaconv128-5way.json",
+        #"results/miniimagenet/pretraining-miniimagenet-adaresnet-5way.json",
+        "results/miniimagenet/pretraining-miniimagenet-relationnet-5way-0.json",
+        "results/miniimagenet/pretraining-miniimagenet-relationnet-5way-1.json",
+        "results/miniimagenet/pretraining-miniimagenet-relationnet-5way-2.json",
+        "results/miniimagenet/pretraining-miniimagenet-relationnet-5way-3.json",
     ]
 
     # Setting the plot settings.
@@ -94,7 +93,7 @@ def plot_pretraining_learning_curve():
         # Computing the average learning curve.
         plt.plot(np.linspace(0, len(loss), len(loss)), loss, linewidth=3, label=method)
 
-        #print(method, results["testing_mean"])
+        print(method, min(loss))  # results["testing_mean"]
 
     plt.ylabel("Error")
     plt.grid(alpha=0.5)

@@ -1,6 +1,5 @@
 # Meta Optimization used in Meta-Training.
 meta_gradient_steps: 100000
-meta_batch_size: 4
 meta_optimizer_name: "adam"
 meta_optimizer_settings:
   lr: 0.001

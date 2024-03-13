@@ -108,7 +108,7 @@ def _run_experiment(dataset, model, config, random_state):
     # Saving the pretrained model.
     pretrained_directory = "source/models/pretrained/" + args.dataset + "/"
     export_model(base_model, pretrained_directory, args.dataset + "-" + args.model +
-                 "-" + str(config["num_ways"]) + "way", separate_models_directory=False)
+                 "-" + str(config["num_ways"]) + "way-" + str(random_state), separate_models_directory=False)
 
     # Recording the experiment configurations.
     results["experiment_configuration"] = config.copy()
@@ -119,7 +119,8 @@ def _run_experiment(dataset, model, config, random_state):
 
     # Exporting the results to a json file.
     res_directory = directory + config["output_path"]
-    file_name = "pretraining-" + args.dataset + "-" + args.model + "-" + str(config["num_ways"]) + "way"
+    file_name = "pretraining-" + args.dataset + "-" + args.model + "-" + \
+                str(config["num_ways"]) + "way-" + str(random_state)
 
     # Recording information about the experiment.
     results["command"] = "python " + " ".join(sys.argv)  # Recording the python command used.

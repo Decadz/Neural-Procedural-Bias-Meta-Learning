@@ -70,10 +70,14 @@ def _run_experiment(dataset, model, config, random_state):
         base_model = model(**config).to(device)
         base_model.load_state_dict(base_model_state_dict)
 
-        # Disable gradient tracking for the specified layers
-        for layer in [base_model.encoder.block1, base_model.encoder.block2, base_model.encoder.block3]:
-            for param in layer.parameters():
-                param.requires_grad = False
+        # Finding all the parameters that are not base or meta parameters.
+        frozen_param = set(base_model.parameters()) - \
+                       set(base_model.base_parameters()) - \
+                       set(base_model.meta_parameters())
+
+        # Setting requires_grad to false for all unused layers.
+        for param in frozen_param:
+            param.requires_grad = False
 
     else:  # If we are using an untrained backbone.
         base_model = model(**config).to(device)

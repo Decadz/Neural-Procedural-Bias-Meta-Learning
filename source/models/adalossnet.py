@@ -37,7 +37,7 @@ class AdaLossNetwork(torch.nn.Module):
 
         # Initializing the loss networks parameters.
         self.initialize()
-        
+
     def forward(self, fx, y, task_embeddings, model):
 
         # Calculating the inductive learned loss value.
@@ -171,16 +171,14 @@ class _FiLMLinearBlock(torch.nn.Module):
 
         # Computing a forward pass on the convolutional layer.
         z = self.linear(x)
-        # TODO - Resolve!
-        """  
-        # Computing the gamma and beta values.
-        gamma, beta = self.film(x).mean(dim=0).chunk(2)
 
-        # Expanding tensor back into the correct dimension size.
-        gamma = gamma[None, :].expand_as(z)
-        beta = beta[None, :].expand_as(z)
-        """
-        return self.activation(z)  # (1 + gamma) * z + beta
+        # Computing the gamma and beta values.
+        gamma, beta = self.film(x).chunk(2, dim=1)
+
+        # Applying the scale and shift FiLM to the pre-activation output.
+        z = (1 + gamma) * z + beta
+
+        return self.activation(z)
 
     def initialize(self):
         torch.nn.init.normal_(self.linear.weight, 0, 0.01)
