@@ -1,3 +1,5 @@
+# v39 (based on v14 and v21) testing weight decay again.
+
 import collections
 import torch
 
@@ -11,8 +13,7 @@ class _AdaResNet(torch.nn.Module):
             ("block1", _ConvBlock(input_channels, block_config[0])),
             ("block2", _ConvBlock(block_config[0], block_config[1])),
             ("block3", _ConvBlock(block_config[1], block_config[2])),
-            ("adapt", _FiLMConvBlock(block_config[2], block_config[3])),
-            ("warp", _FiLMWarpBlock(block_config[3], block_config[3])),
+            ("adapt", _FiLMWarpConvBlock(block_config[2], block_config[3])),
             ("adaPool", torch.nn.AdaptiveAvgPool2d(1)),
             ("flatten", torch.nn.Flatten())
         ]))
@@ -32,7 +33,7 @@ class _AdaResNet(torch.nn.Module):
 
         # Turning on the task adaptive FiLM layers.
         for name, module in self.encoder.named_children():
-            if isinstance(module, (_FiLMConv, _FiLMConvBlock, _FiLMWarpBlock)):
+            if isinstance(module, _FiLMWarpConvBlock):
                 module.task_adaptive = task_adaptive
 
         # Generating the image embeddings using the encoder.
@@ -42,11 +43,10 @@ class _AdaResNet(torch.nn.Module):
         return self.classifier(z)
 
     def initialize(self):
-
         # Initializing the networks parameters.
         self.classifier.initialize()
         for name, module in self.encoder.named_children():
-            if isinstance(module, (_FiLMConvBlock, _FiLMWarpBlock)):
+            if isinstance(module, (_ConvBlock, _FiLMWarpConvBlock)):
                 module.initialize()
 
     def reset_classifier(self):
@@ -56,14 +56,14 @@ class _AdaResNet(torch.nn.Module):
     def meta_parameters(self):
         for name, module in self.encoder.named_children():
             if hasattr(module, "meta_parameters"):
-                if isinstance(module, (_FiLMConvBlock, _FiLMWarpBlock)):
+                if isinstance(module, _FiLMWarpConvBlock):
                     yield from module.meta_parameters()
         yield from self.classifier.meta_parameters()
 
     def base_parameters(self):
         for name, module in self.encoder.named_children():
             if hasattr(module, "base_parameters"):
-                if isinstance(module, _FiLMConvBlock):
+                if isinstance(module, _FiLMWarpConvBlock):
                     yield from module.base_parameters()
         yield from self.classifier.base_parameters()
 
@@ -73,44 +73,41 @@ class _AdaResNet(torch.nn.Module):
                 yield from module.base_parameters()
         yield from self.classifier.base_parameters()
 
+
 # ============================================================
 # Network block definitions.
 # ============================================================
-
 
 class _ConvBlock(torch.nn.Module):
 
     def __init__(self, in_channels, out_channels):
         super(_ConvBlock, self).__init__()
 
-        # The convolutional feature extractor block, containing three filmed conv -> bn.
-        self.block = torch.nn.Sequential(collections.OrderedDict([
-            ("adapt1", torch.nn.Conv2d(in_channels, out_channels, 3, padding=1, bias=False)),
-            ("bn1", torch.nn.BatchNorm2d(out_channels, track_running_stats=False)),
-            ("relu1", torch.nn.ReLU(inplace=True)),
-            ("adapt2", torch.nn.Conv2d(out_channels, out_channels, 3, padding=1, bias=False)),
-            ("bn2", torch.nn.BatchNorm2d(out_channels, track_running_stats=False)),
-            ("relu2", torch.nn.ReLU(inplace=True)),
-            ("adapt3", torch.nn.Conv2d(out_channels, out_channels, 3, padding=1, bias=False)),
-            ("bn3", torch.nn.BatchNorm2d(out_channels, track_running_stats=False)),
-        ]))
+        # Defining the stacked convolutional block.
+        self.conv1 = torch.nn.Conv2d(in_channels, out_channels, 3, padding=1, bias=False)
+        self.bn1 = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
 
-        # Residual (skip) connections. Cant been in sequential block since it runs in parallel.
+        self.conv2 = torch.nn.Conv2d(out_channels, out_channels, 3, padding=1, bias=False)
+        self.bn2 = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
+
+        self.conv3 = torch.nn.Conv2d(out_channels, out_channels, 3, padding=1, bias=False)
+        self.bn3 = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
+
+        # Defining the residual skip connection layers.
         self.res_conv = torch.nn.Conv2d(in_channels, out_channels, 1, 1, padding=0, bias=False)
         self.res_bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
 
-        # Block non-linearity and down-sampling layer.
-        self.relu = torch.nn.ReLU(inplace=True)
+        # Down-sampling layer at the end of the block.
         self.pool = torch.nn.MaxPool2d(2)
 
-        # Block configurations and hyper-parameters.
-        self.in_planes = in_channels
-        self.planes = out_channels
+        # The activation function used in the network.
+        self.activation = torch.nn.LeakyReLU(inplace=True)
 
     def forward(self, x):
-        out = self.block(x)
-        res = self.res_bn(self.res_conv(x))
-        return self.pool(self.relu(out + res))
+        z = self.activation(self.bn1(self.conv1(x)))
+        z = self.activation(self.bn2(self.conv2(z)))
+        z = self.bn3(self.conv3(z)) + self.res_bn(self.res_conv(x))
+        return self.pool(self.activation(z))
 
     def initialize(self):
         for module in self.modules():
@@ -121,110 +118,56 @@ class _ConvBlock(torch.nn.Module):
                 module.bias.data.zero_()
 
     def base_parameters(self):
-        yield from self.block.parameters()
+        yield from self.conv1.parameters()
+        yield from self.conv2.parameters()
+        yield from self.conv3.parameters()
         yield from self.res_conv.parameters()
 
 
-class _FiLMConvBlock(torch.nn.Module):
+class _FiLMWarpConvBlock(torch.nn.Module):
 
     def __init__(self, in_channels, out_channels):
-        super(_FiLMConvBlock, self).__init__()
+        super(_FiLMWarpConvBlock, self).__init__()
 
-        # The convolutional feature extractor block, containing three filmed conv -> bn.
-        self.block = torch.nn.Sequential(collections.OrderedDict([
-            ("adapt1", _FiLMConv(in_channels, out_channels)),
-            ("relu1", torch.nn.ReLU(inplace=True)),
-            ("adapt2", _FiLMConv(out_channels, out_channels)),
-            ("relu2", torch.nn.ReLU(inplace=True)),
-            ("adapt3", _FiLMConv(out_channels, out_channels)),
-        ]))
+        # Defining the stacked convolutional block.
+        self.conv1 = torch.nn.Conv2d(in_channels, out_channels, 3, padding=1, bias=False)
+        self.bn1 = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
+        self.film1 = torch.nn.Linear(in_channels, out_channels * 2)
 
-        # Residual (skip) connections. Cant been in sequential block since it runs in parallel.
+        self.conv2 = torch.nn.Conv2d(out_channels, out_channels, 3, padding=1, bias=False)
+        self.bn2 = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
+        self.film2 = torch.nn.Linear(out_channels, out_channels * 2)
+
+        self.conv3 = torch.nn.Conv2d(out_channels, out_channels, 3, padding=1, bias=False)
+        self.bn3 = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
+        self.film3 = torch.nn.Linear(out_channels, out_channels * 2)
+
+        # Defining the warp preconditioning layers.
+        self.warp_conv = torch.nn.Conv2d(out_channels, out_channels, 3, padding=1, bias=False)
+        self.warp_bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
+        self.warp_film = torch.nn.Linear(out_channels, out_channels * 2)
+
+        # Defining the residual skip connection layers.
         self.res_conv = torch.nn.Conv2d(in_channels, out_channels, 1, 1, padding=0, bias=False)
         self.res_bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
-        self.res_film = torch.nn.Linear(out_channels, out_channels * 2)
 
-        # Block non-linearity and down-sampling layer.
-        self.relu = torch.nn.ReLU(inplace=True)
+        # Down-sampling layer at the end of the block.
         self.pool = torch.nn.MaxPool2d(2)
 
-        # Block configurations and hyper-parameters.
-        self.in_planes = in_channels
-        self.planes = out_channels
+        # The activation function used in the network.
+        self.activation = torch.nn.LeakyReLU(inplace=True)
 
         # Field for controlling the current state of the layer.
         self.task_adaptive = False
 
     def forward(self, x):
-        out = self.block(x)
-        res = self.res_bn(self.res_conv(x))
+        z = self.activation(self._apply_film(x, self.bn1(self.conv1(x)), self.film1))
+        z = self.activation(self._apply_film(z, self.bn2(self.conv2(z)), self.film2))
+        z = self._apply_film(z, self.bn3(self.conv3(z)), self.film3)
+        z = self._apply_film(z, self.warp_bn(self.warp_conv(z)), self.warp_film)
+        return self.pool(self.activation(z + self.res_bn(self.res_conv(x))))
 
-        if self.task_adaptive:  # If task adaptive apply Feature Wise Linear Modulation (FiLM).
-
-            # Computing the local and global embeddings.
-            avg_channel = torch.nn.functional.adaptive_avg_pool2d(res, (1, 1))
-
-            # Computing the gamma and beta weights for the FiLM.
-            gamma, beta = self.res_film(avg_channel.squeeze()).chunk(chunks=2, dim=1)
-
-            # Expanding in the spatial (width and height) dimension.
-            gamma = gamma[:, :, None, None].expand_as(res)
-            beta = beta[:, :, None, None].expand_as(res)
-
-            # Applying the scale and shift FiLM to the pre-activation output.
-            res = (1 + gamma) * res + beta
-
-        return self.pool(self.relu(out + res))
-
-    def initialize(self):
-        # Initializing the sequential block.
-        for name, module in self.block.named_children():
-            if isinstance(module, _FiLMConv):
-                module.initialize()
-
-        torch.nn.init.normal_(self.res_conv.weight, 0, 0.01)
-        torch.nn.init.normal_(self.res_film.weight, 0, 0.01)
-        self.res_bn.weight.data.fill_(1)
-        self.res_bn.bias.data.zero_()
-
-    def meta_parameters(self):
-        for module in self.block.children():
-            if hasattr(module, "meta_parameters"):
-                yield from module.meta_parameters()
-
-        yield from self.res_conv.parameters()
-        yield from self.res_film.parameters()
-
-    def base_parameters(self):
-        for module in self.block.children():
-            if hasattr(module, "base_parameters"):
-                yield from module.base_parameters()
-
-        yield from self.res_conv.parameters()
-        yield from self.res_film.parameters()
-
-
-class _FiLMWarpBlock(torch.nn.Module):
-
-    def __init__(self, in_channels, out_channels):
-        super(_FiLMWarpBlock, self).__init__()
-
-        # The underlying convolutional layer (as implemented in PyTorch).
-        self.conv = torch.nn.Conv2d(in_channels, out_channels, 3, padding=1, bias=False)
-
-        # Batch normalization layer to reduce internal covariance shift.
-        self.bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
-
-        # The feature wise linear modulation (FiLM) layer for making the layer adaptive.
-        self.film = torch.nn.Linear(in_channels, out_channels * 2)
-
-        # Field for controlling the current state of the layer.
-        self.task_adaptive = False
-
-    def forward(self, x):
-
-        # Computing a forward pass on the convolutional layer.
-        z = self.bn(self.conv(x))
+    def _apply_film(self, x, z, film):
 
         if self.task_adaptive:  # If task adaptive apply Feature Wise Linear Modulation (FiLM).
 
@@ -232,7 +175,7 @@ class _FiLMWarpBlock(torch.nn.Module):
             avg_channel = torch.nn.functional.adaptive_avg_pool2d(x, (1, 1))
 
             # Computing the gamma and beta weights for the FiLM.
-            gamma, beta = self.film(avg_channel.squeeze()).chunk(chunks=2, dim=1)
+            gamma, beta = film(avg_channel.squeeze()).chunk(chunks=2, dim=1)
 
             # Expanding in the spatial (width and height) dimension.
             gamma = gamma[:, :, None, None].expand_as(z)
@@ -244,68 +187,35 @@ class _FiLMWarpBlock(torch.nn.Module):
         return z
 
     def initialize(self):
-        torch.nn.init.dirac_(self.conv.weight)
-        torch.nn.init.normal_(self.film.weight, 0, 0.01)
-        self.bn.weight.data.fill_(1)
-        self.bn.bias.data.zero_()
+        for module in self.modules():
+            if isinstance(module, torch.nn.Conv2d):
+                torch.nn.init.normal_(module.weight, 0, 0.01)
+            if isinstance(module, torch.nn.Linear):
+                torch.nn.init.normal_(module.weight, 0, 0.01)
+                module.bias.data.zero_()
+            elif isinstance(module, torch.nn.BatchNorm2d):
+                module.weight.data.fill_(1)
+                module.bias.data.zero_()
+
+        # Initializing the warp layer.
+        torch.nn.init.dirac_(self.warp_conv.weight)
 
     def meta_parameters(self):
-        yield from self.conv.parameters()
-        yield from self.film.parameters()
-
-
-class _FiLMConv(torch.nn.Module):
-
-    def __init__(self, in_channels, out_channels):
-        super(_FiLMConv, self).__init__()
-
-        # The underlying convolutional layer (as implemented in PyTorch).
-        self.conv = torch.nn.Conv2d(in_channels, out_channels, 3, padding=1, bias=False)
-
-        # Batch normalization layer to reduce internal covariance shift.
-        self.bn = torch.nn.BatchNorm2d(out_channels, track_running_stats=False)
-
-        # The feature wise linear modulation (FiLM) layer for making the layer adaptive.
-        self.film = torch.nn.Linear(in_channels, out_channels * 2)
-
-        # Field for controlling the current state of the layer.
-        self.task_adaptive = False
-
-    def forward(self, x):
-
-        # Computing a forward pass on the convolutional layer.
-        z = self.bn(self.conv(x))
-
-        if self.task_adaptive:  # If task adaptive apply Feature Wise Linear Modulation (FiLM).
-
-            # Computing the local and global embeddings.
-            avg_channel = torch.nn.functional.adaptive_avg_pool2d(x, (1, 1))
-
-            # Computing the gamma and beta weights for the FiLM.
-            gamma, beta = self.film(avg_channel.squeeze()).chunk(chunks=2, dim=1)
-
-            # Expanding in the spatial (width and height) dimension.
-            gamma = gamma[:, :, None, None].expand_as(z)
-            beta = beta[:, :, None, None].expand_as(z)
-
-            # Applying the scale and shift FiLM to the pre-activation output.
-            z = (1 + gamma) * z + beta
-
-        return z
-
-    def initialize(self):
-        torch.nn.init.normal_(self.conv.weight, 0, 0.01)
-        torch.nn.init.normal_(self.film.weight, 0, 0.01)
-        self.bn.weight.data.fill_(1)
-        self.bn.bias.data.zero_()
-
-    def meta_parameters(self):
-        yield from self.conv.parameters()
-        yield from self.film.parameters()
+        yield from self.conv1.parameters()
+        yield from self.conv2.parameters()
+        yield from self.conv3.parameters()
+        yield from self.warp_conv.parameters()
+        yield from self.res_conv.parameters()
+        yield from self.film1.parameters()
+        yield from self.film2.parameters()
+        yield from self.film3.parameters()
+        yield from self.warp_film.parameters()
 
     def base_parameters(self):
-        yield from self.conv.parameters()
-        yield from self.film.parameters()
+        yield from self.conv1.parameters()
+        yield from self.conv2.parameters()
+        yield from self.conv3.parameters()
+        yield from self.res_conv.parameters()
 
 
 class _PermutationInvariantClassifier(torch.nn.Module):

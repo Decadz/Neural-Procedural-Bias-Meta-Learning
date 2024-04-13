@@ -15,15 +15,9 @@ def main():
 def plot_learning_curve():
 
     paths = [
-        #"results/miniimagenet/npbml-miniimagenet-adaresnet-5way-5shot-0.json",
-        #"results/miniimagenet/npbml-miniimagenet-adaresnet-5way-5shot-1.json",
-        #"results/miniimagenet/npbml-miniimagenet-adaresnet-5way-5shot-2.json",
-        #"results/miniimagenet/npbml-miniimagenet-adaresnet-5way-5shot-3.json",
-        "results/miniimagenet/npbml-miniimagenet-adaconv128-5way-5shot-2.json",
-        "results/miniimagenet/npbml-miniimagenet-adaconv128-5way-5shot-1000.json",
-        "results/miniimagenet/npbml-miniimagenet-adaconv128-5way-5shot-1001.json",
-        "results/miniimagenet/npbml-miniimagenet-adaconv128-5way-5shot-1002.json",
-        "results/miniimagenet/npbml-miniimagenet-adaconv128-5way-5shot-1003.json",
+        # Weight decay
+        "results/miniimagenet/npbml-miniimagenet-adaresnet-5way-5shot-100.json",
+        "results/miniimagenet/npbml-miniimagenet-adaresnet-5way-5shot-101.json",
     ]
 
     # Setting the plot settings.
@@ -33,7 +27,7 @@ def plot_learning_curve():
     plt.rcParams["figure.figsize"] = (4.25, 5)  # (8, 4.5)
 
     # Name of the methods and their respective plotting colors.
-    method_names = ["baseline", "all film expand", "all film no expand", "partial film expand", "partial film no expand"]
+    method_names = ["1", "2", "3", "4", "5", "6", "7", "8"]
 
     # Iterating over the different methods.
     for path, method in zip(paths, method_names):
@@ -61,15 +55,12 @@ def plot_learning_curve():
 def plot_pretraining_learning_curve():
 
     paths = [
-        #"results/miniimagenet/pretraining-miniimagenet-adaconv32-5way.json",
-        #"results/miniimagenet/pretraining-miniimagenet-adaconv48-5way.json",
-        #"results/miniimagenet/pretraining-miniimagenet-adaconv64-5way.json",
-        #"results/miniimagenet/pretraining-miniimagenet-adaconv128-5way.json",
-        #"results/miniimagenet/pretraining-miniimagenet-adaresnet-5way.json",
-        "results/miniimagenet/pretraining-miniimagenet-relationnet-5way-0.json",
-        "results/miniimagenet/pretraining-miniimagenet-relationnet-5way-1.json",
-        "results/miniimagenet/pretraining-miniimagenet-relationnet-5way-2.json",
-        "results/miniimagenet/pretraining-miniimagenet-relationnet-5way-3.json",
+        "results/miniimagenet/pretraining-miniimagenet-adaresnet-5way-14.json",
+        "results/miniimagenet/pretraining-miniimagenet-adaresnet-5way-31.json",
+        "results/miniimagenet/pretraining-miniimagenet-adaresnet-5way-32.json",
+        "results/miniimagenet/pretraining-miniimagenet-adaresnet-5way-33.json",
+        "results/miniimagenet/pretraining-miniimagenet-adaresnet-5way-34.json",
+        "results/miniimagenet/pretraining-miniimagenet-adaresnet-5way-35.json",
     ]
 
     # Setting the plot settings.
@@ -79,7 +70,7 @@ def plot_pretraining_learning_curve():
     plt.rcParams["figure.figsize"] = (4.25, 5)  # (8, 4.5)
 
     # Name of the methods and their respective plotting colors.
-    method_names = ["CONV4-128 (Old)", "CONV4-64 (New)", "3", "4", "5", "6", "7", "8"]
+    method_names = ["control", "31 - 0.05", "32 - 0.1", "33 - 0.15", "34 - 0.2", "35 - 0.25"]
 
     # Iterating over the different methods.
     for path, method in zip(paths, method_names):

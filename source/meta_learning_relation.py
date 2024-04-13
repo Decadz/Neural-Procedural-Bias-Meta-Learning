@@ -6,6 +6,9 @@ import copy
 def meta_training_relation(model, optimizer, scheduler, training, validation, num_ways, num_shots,
                            gradient_steps, performance_metric, verbose, **kwargs):
 
+    # Setting the base model to training mode.
+    model.train()
+
     # Objects for keeping track of the learning history.
     checkpointer = _StateCheckpointer(validation, num_ways, num_shots, performance_metric, verbose)
 
@@ -51,6 +54,9 @@ def meta_training_relation(model, optimizer, scheduler, training, validation, nu
 
 
 def meta_testing_relation(model, dataset, performance_metric, test_tasks, verbose, **kwargs):
+
+    # Setting the base model to inference mode.
+    model.eval()
 
     # List for keeping track of the learning history.
     performance_history = []

@@ -26,6 +26,9 @@ def pretrain(model, optimizer, scheduler, training, validation, num_ways, num_sh
     :return: List containing the meta-training history.
     """
 
+    # Setting the base model to training mode.
+    model.train()
+
     # Extracting the custom dataset object into a dataloader object.
     if not isinstance(training.dataset, torch.utils.data.DataLoader):
         training = torch.utils.data.DataLoader(training.dataset, batch_size=batch_size, shuffle=True)
@@ -100,6 +103,9 @@ class _StateCheckpointer(torch.nn.Module):
         self.performance_history = []
 
     def checkpoint(self, base_model, step):
+
+        # Setting the base model to inference mode.
+        base_model.eval()
 
         # If step is not in the desired frequency the skip checkpointing.
         if step % self.frequency == 0:

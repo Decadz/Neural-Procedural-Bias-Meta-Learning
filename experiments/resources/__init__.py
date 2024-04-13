@@ -26,21 +26,6 @@ def match_signature(func):
     return wrapped_func
 
 
-def kl_divergence(p_target, q_target):
-
-    """
-    Function for computing the Kullback-Leibler divergence given a target set 
-    of parameters and a bootstrapped target to minimize the divergce to.
-    """
-
-    # Converting into a probability distribution.
-    p = torch.nn.functional.softmax(p_target, dim=0)
-    q = torch.nn.functional.softmax(q_target, dim=0)
-
-    # Computing the Kullback-Leibler divergence.
-    return (p * (p / q).log()).sum()
-
-
 # Path to the configuration files for the datasets and methods.
 dataset_config_path = "experiments/resources/configurations/datasets/"
 method_config_path = "experiments/resources/configurations/methods/"
@@ -63,7 +48,6 @@ dataset_config_archive = {
 
 method_config_archive = {
     "maml": method_config_path + "maml_config.yaml",
-    "warpgrad": method_config_path + "warpgrad_config.yaml",
     "npbml": method_config_path + "npbml_config.yaml",
     "pretraining": method_config_path + "pretraining_config.yaml",
     "relation": method_config_path + "relation_config.yaml",
@@ -76,12 +60,12 @@ objective_archive = {
     "bceloss": torch.nn.BCELoss(),
     "mseloss": torch.nn.MSELoss(),
     "celoss": torch.nn.CrossEntropyLoss(),
-    "kldiv": kl_divergence
 }
 
 optimizer_archive = {
     "sgd": match_signature(torch.optim.SGD),
-    "adam": match_signature(torch.optim.Adam)
+    "adam": match_signature(torch.optim.Adam),
+    "adamw": match_signature(torch.optim.AdamW),
 }
 
 scheduler_archive = {

@@ -8,6 +8,9 @@ def meta_training_npbml(base_model, meta_optimizer, base_optimizer, meta_schedul
                         task_encoder, meta_gradient_steps, base_gradient_steps, meta_batch_size,
                         meta_loss_function, base_loss_function, performance_metric, verbose, **kwargs):
 
+    # Setting the base model to training mode.
+    base_model.train()
+
     # Objects for keeping track of the learning history.
     checkpointer = _StateCheckpointerNPBML(
         base_optimizer, validation, base_gradient_steps, meta_gradient_steps, performance_metric, verbose
@@ -72,6 +75,9 @@ def meta_training_npbml(base_model, meta_optimizer, base_optimizer, meta_schedul
 
 def meta_testing_npbml(base_model, base_optimizer, dataset, base_gradient_steps, task_encoder,
                        loss_function, performance_metric, test_tasks, verbose, **kwargs):
+
+    # Setting the base model to inference mode.
+    base_model.eval()
 
     # List for keeping track of the learning history.
     performance_history = []

@@ -61,7 +61,7 @@ def _run_experiment(dataset, model, config, random_state):
 
         # The directory and file name for the loading the pretrained base model.
         pretrained_directory = "source/models/pretrained/" + args.dataset + "/"
-        file_name = args.dataset + "-" + args.model + "-" + str(config["num_ways"]) + "way.pth"
+        file_name = args.dataset + "-" + args.model + "-" + str(config["num_ways"]) + "way-X.pth"
 
         # Loading the base model's state dictionary from the .pth file
         base_model_state_dict = torch.load(pretrained_directory + file_name, map_location=torch.device('cpu'))
@@ -93,12 +93,13 @@ def _run_experiment(dataset, model, config, random_state):
     task_encoder = RelationNetwork(**config).to(device)
     task_encoder.load_state_dict(task_encoder_state_dict)
 
-    # Creating the meta learned loss function.
+    # Creating the meta learned base loss function.
     learned_loss = AdaLossNetwork(model=base_model, **config).to(device)
 
+    # Creating the *meta* optimizer for learning the meta parameters.
     meta_optimizer = optimizer_archive[config["meta_optimizer_name"]](
-       list(base_model.meta_parameters()) + list(learned_loss.meta_parameters()),
-       **config["meta_optimizer_settings"])
+        list(base_model.meta_parameters()) + list(learned_loss.meta_parameters()),
+        **config["meta_optimizer_settings"])
 
     # Creating the base model's *base* optimizer.
     base_optimizer = optimizer_archive[config["base_optimizer_name"]](

@@ -8,6 +8,9 @@ def meta_training_default(base_model, meta_optimizer, base_optimizer, meta_sched
                           meta_gradient_steps, base_gradient_steps, meta_batch_size, meta_loss_function,
                           base_loss_function, performance_metric, verbose, **kwargs):
 
+    # Setting the base model to training mode.
+    base_model.train()
+
     # Objects for keeping track of the learning history.
     checkpointer = _StateCheckpointerDefault(
         base_optimizer, validation, base_gradient_steps, meta_gradient_steps, performance_metric, verbose
@@ -65,6 +68,9 @@ def meta_training_default(base_model, meta_optimizer, base_optimizer, meta_sched
 
 def meta_testing_default(base_model, base_optimizer, dataset, base_gradient_steps, loss_function,
                          performance_metric, test_tasks, verbose, **kwargs):
+
+    # Setting the base model to inference mode.
+    base_model.eval()
 
     # List for keeping track of the learning history.
     performance_history = []

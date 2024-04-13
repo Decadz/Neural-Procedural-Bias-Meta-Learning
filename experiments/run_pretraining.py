@@ -56,27 +56,19 @@ def _run_experiment(dataset, model, config, random_state):
     # Generating the custom dataset object.
     training, validation, _ = dataset(pretraining=True, device=device, **config)
 
-    # Creating the base model.
+    # Creating the base model which is trained over the union of all training classes.
     base_model = model(
         input_channels=config["input_channels"],
         num_ways=training.dataset.num_classes
     ).to(device)
 
-    # If using a Conv4 base model train using Adam.
-    if "conv" in args.model:
-        pretrain_optimizer = torch.optim.SGD(
-            base_model.pretraining_parameters(), lr=0.01, momentum=0.9, nesterov=True, weight_decay=0.0005)
+    # Creating the *pretraining* optimizer for pretraining the model's base parameters.
+    pretrain_optimizer = optimizer_archive[config["pretraining_optimizer_name"]](
+        base_model.pretraining_parameters(), **config["pretraining_optimizer_settings"])
 
-        pretrain_scheduler = torch.optim.lr_scheduler.MultiStepLR(
-            pretrain_optimizer, milestones=[100000, 150000, 175000, 190000], gamma=0.1)
-
-    # If using a ResNet base model train using SGD.
-    elif "resnet" in args.model:
-        pretrain_optimizer = torch.optim.SGD(
-            base_model.pretraining_parameters(), lr=0.1, momentum=0.9, nesterov=True, weight_decay=0.0005)
-
-        pretrain_scheduler = torch.optim.lr_scheduler.MultiStepLR(
-            pretrain_optimizer, milestones=[80000, 100000, 110000, 120000], gamma=0.1)
+    # Creating the *pretraining* learning rate scheduler.
+    pretrain_scheduler = scheduler_archive[config["pretraining_scheduler_name"]](
+        pretrain_optimizer, **config["pretraining_scheduler_settings"])
 
     # Creating a results dictionary and recording the start time of the experiment.
     results = {"start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}

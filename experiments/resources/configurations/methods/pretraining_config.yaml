@@ -1,3 +1,17 @@
 # Meta Transfer Learning (Initialization).
 pretraining_gradient_steps: 200000
 pretraining_batch_size: 128
+
+# Pretraining Optimizer Settings.
+pretraining_optimizer_name: "sgd"
+pretraining_optimizer_settings:
+  lr: 0.01
+  momentum: 0.9
+  nesterov: True
+  weight_decay: 0.0005
+
+# Pretraining Scheduler Settings.
+pretraining_scheduler_name: "multistep"
+pretraining_scheduler_settings:
+  milestones: [100000, 150000, 175000, 190000]
+  gamma: 0.1

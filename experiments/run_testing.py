@@ -13,7 +13,7 @@ import time
 import yaml
 import tqdm
 
-# python experiments/run_testing.py --dataset miniimagenet --model adaconv128 --num_ways 5 --num_shots 5 --meta_batch_size 2 --seeds 1000 --device cuda:0
+# python experiments/run_testing.py --dataset miniimagenet --model adaconv128 --num_ways 5 --num_shots 5 --meta_batch_size 2 --seeds 100 --device cuda:0
 
 # Use the GPU/CUDA when available, else use the CPU.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -65,12 +65,13 @@ def _run_experiment(dataset, model, config, random_state):
     file_name = "npbml-" + args.dataset + "-" + args.model + "-" + str(config["num_ways"]) + \
                 "way-" + str(config["num_shots"]) + "shot-" + str(random_state) + ".pth"
 
-    # Loading the base model from the .pth file
+    # Loading the base model from the .pth file.
     base_model_state_dictionary = torch.load(res_directory + "models/" + file_name, map_location=torch.device('cpu'))
 
     # Creating a base model instances and loading in the state dictionary.
     base_model = model(**config).to(device)
 
+    # Loading the loss function from the .pth file.
     learned_loss_state_dictionary = torch.load(res_directory + "losses/" + file_name, map_location=torch.device('cpu'))
 
     # Creating the meta learned loss function.
@@ -132,6 +133,9 @@ def _run_experiment(dataset, model, config, random_state):
 
 def _meta_testing(base_model, base_model_state_dictionary, loss_function, loss_function_state_dictionary,
                   dataset, task_encoder, performance_metric, config):
+
+    # Setting the base model to inference mode.
+    base_model.eval()
 
     # List for keeping track of the learning history.
     performance_history = []

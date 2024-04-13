@@ -106,6 +106,14 @@ def override_configurations(args, args_unknown, required_args, dataset_config, m
                 key = key.replace("--base_optimizer_", "")
                 config["base_optimizer_settings"][key] = ast.literal_eval(arg)
 
+            elif "pretraining_optimizer" in key:
+                key = key.replace("--pretraining_optimizer_", "")
+                config["pretraining_optimizer_settings"][key] = ast.literal_eval(arg)
+
+            elif "pretraining_scheduler" in key:
+                key = key.replace("--pretraining_scheduler_", "")
+                config["pretraining_scheduler_settings"][key] = ast.literal_eval(arg)
+
             else:
                 raise ValueError("Don't know how to parse", key, arg)
 
