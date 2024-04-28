@@ -139,3 +139,9 @@ class Conv128(_Conv):
 
     def __init__(self, **kwargs):
         super(Conv128, self).__init__(num_filters=128, **kwargs)
+
+
+class Conv256(_Conv):
+
+    def __init__(self, **kwargs):
+        super(Conv256, self).__init__(num_filters=256, **kwargs)

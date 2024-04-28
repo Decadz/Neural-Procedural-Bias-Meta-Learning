@@ -8,11 +8,11 @@ from source.meta_learning_relation import meta_testing_relation
 from source.pretraining import pretrain
 
 # Importing the default base-networks.
-from source.models.convnet import Conv32, Conv48, Conv64, Conv128
+from source.models.convnet import Conv32, Conv48, Conv64, Conv128, Conv256
 from source.models.resnet import ResNet, WideResNet
 
 # Importing the custom base-networks.
-from source.models.adaconvnet import AdaConv32, AdaConv48, AdaConv64, AdaConv128
+from source.models.adaconvnet import AdaConv32, AdaConv48, AdaConv64, AdaConv128, AdaConv256
 from source.models.adaresnet import AdaResNet, WideAdaResNet
 from source.models.adalossnet import AdaLossNetwork
 
@@ -24,6 +24,7 @@ model_archive = {
     "conv48": Conv48,
     "conv64": Conv64,
     "conv128": Conv128,
+    "conv256": Conv256,
 
     "resnet": ResNet,
     "wideresnet": WideResNet,
@@ -32,6 +33,7 @@ model_archive = {
     "adaconv48": AdaConv48,
     "adaconv64": AdaConv64,
     "adaconv128": AdaConv128,
+    "adaconv256": AdaConv256,
 
     "adaresnet": AdaResNet,
     "wideadaresnet": WideAdaResNet,

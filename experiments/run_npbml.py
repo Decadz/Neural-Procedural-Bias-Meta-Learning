@@ -61,7 +61,7 @@ def _run_experiment(dataset, model, config, random_state):
 
         # The directory and file name for the loading the pretrained base model.
         pretrained_directory = "source/models/pretrained/" + args.dataset + "/"
-        file_name = args.dataset + "-" + args.model + "-" + str(config["num_ways"]) + "way-X.pth"
+        file_name = args.dataset + "-" + args.model + "-" + str(config["num_ways"]) + "way.pth"
 
         # Loading the base model's state dictionary from the .pth file
         base_model_state_dict = torch.load(pretrained_directory + file_name, map_location=torch.device('cpu'))

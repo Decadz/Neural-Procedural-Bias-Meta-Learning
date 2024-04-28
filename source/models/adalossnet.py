@@ -172,8 +172,9 @@ class _FiLMLinearBlock(torch.nn.Module):
         # Computing a forward pass on the convolutional layer.
         z = self.linear(x)
 
-        # Computing the gamma and beta values.
-        gamma, beta = self.film(x).chunk(2, dim=1)
+        gamma, beta = self.film(x).mean(dim=0).chunk(chunks=2)
+        gamma = gamma[None, :].expand_as(z)
+        beta = beta[None, :].expand_as(z)
 
         # Applying the scale and shift FiLM to the pre-activation output.
         z = (1 + gamma) * z + beta

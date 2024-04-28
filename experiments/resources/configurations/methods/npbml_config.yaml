@@ -4,7 +4,7 @@ pretrained_backbone: True
 # Meta Optimization used in Meta-Training.
 meta_gradient_steps: 60000
 meta_batch_size: 4
-meta_optimizer_name: "adamw"
+meta_optimizer_name: "adam"
 meta_optimizer_settings:
   lr: 0.00001
 

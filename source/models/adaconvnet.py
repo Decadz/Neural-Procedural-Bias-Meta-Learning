@@ -145,11 +145,11 @@ class _FiLMConvBlock(torch.nn.Module):
             avg_channel = torch.nn.functional.adaptive_avg_pool2d(x, (1, 1))
 
             # Computing the gamma and beta weights for the FiLM.
-            gamma, beta = self.film(avg_channel.squeeze()).chunk(chunks=2, dim=1)
+            gamma, beta = self.film(avg_channel.squeeze()).mean(dim=0).chunk(chunks=2)
 
-            # Expanding in the spatial (width and height) dimension.
-            gamma = gamma[:, :, None, None].expand_as(z)
-            beta = beta[:, :, None, None].expand_as(z)
+            # Expanding tensor back into the correct dimension size.
+            gamma = gamma[None, :, None, None].expand_as(z)
+            beta = beta[None, :, None, None].expand_as(z)
 
             # Applying the scale and shift FiLM to the pre-activation output.
             z = (1 + gamma) * z + beta
@@ -199,11 +199,11 @@ class _FiLMWarpBlock(torch.nn.Module):
             avg_channel = torch.nn.functional.adaptive_avg_pool2d(x, (1, 1))
 
             # Computing the gamma and beta weights for the FiLM.
-            gamma, beta = self.film(avg_channel.squeeze()).chunk(chunks=2, dim=1)
+            gamma, beta = self.film(avg_channel.squeeze()).mean(dim=0).chunk(chunks=2)
 
-            # Expanding in the spatial (width and height) dimension.
-            gamma = gamma[:, :, None, None].expand_as(z)
-            beta = beta[:, :, None, None].expand_as(z)
+            # Expanding tensor back into the correct dimension size.
+            gamma = gamma[None, :, None, None].expand_as(z)
+            beta = beta[None, :, None, None].expand_as(z)
 
             # Applying the scale and shift FiLM to the pre-activation output.
             z = (1 + gamma) * z + beta
@@ -283,3 +283,9 @@ class AdaConv128(_AdaConv):
 
     def __init__(self, **kwargs):
         super(AdaConv128, self).__init__(num_filters=128, **kwargs)
+
+
+class AdaConv256(_AdaConv):
+
+    def __init__(self, **kwargs):
+        super(AdaConv256, self).__init__(num_filters=256, **kwargs)
