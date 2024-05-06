@@ -13,7 +13,7 @@ import time
 import yaml
 import tqdm
 
-# python experiments/run_testing.py --dataset miniimagenet --model adaconv128 --num_ways 5 --num_shots 5 --meta_batch_size 2 --seeds 100 --device cuda:0
+# python experiments/run_cross_domain.py --source_domain miniimagenet --target_domain cub200 --dataset none --model adaresnet --num_ways 5 --num_shots 5 --meta_batch_size 2 --seeds 0 --device cuda:0
 
 # Use the GPU/CUDA when available, else use the CPU.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -30,6 +30,12 @@ torch.backends.cudnn.benchmark = False
 
 # Reading in all the experimental configurations and settings.
 parser = argparse.ArgumentParser(description="Experiment Runner")
+
+# Adding the additional cross-domain few shot learning arguments.
+parser.add_argument("--source_domain", required=True, type=str, help="The source domain used for cross-domain FSL")
+parser.add_argument("--target_domain", required=True, type=str, help="The target domain used for cross-domain FSL")
+
+# Registering the remaining default arguments.
 register_configurations(parser)
 
 # Retrieving the dictionary of arguments.
@@ -48,7 +54,7 @@ if args.fast:  # Makes code non-deterministic (but faster).
 # ============================================================
 
 
-def _run_experiment(dataset, model, config, random_state):
+def _run_experiment(dataset, model, source_domain_config, config, random_state):
 
     # Setting the reproducibility seed in PyTorch.
     if random_state is not None:
@@ -61,8 +67,8 @@ def _run_experiment(dataset, model, config, random_state):
     # Generating the custom dataset object.
     training, validation, testing = dataset(device=device, **config)
 
-    res_directory = directory + config["output_path"]
-    file_name = "npbml-" + args.dataset + "-" + args.model + "-" + str(config["num_ways"]) + \
+    res_directory = directory + source_domain_config["output_path"]
+    file_name = "npbml-" + args.source_domain + "-" + args.model + "-" + str(config["num_ways"]) + \
                 "way-" + str(config["num_shots"]) + "shot-" + str(random_state) + ".pth"
 
     # Loading the base model from the .pth file.
@@ -79,7 +85,7 @@ def _run_experiment(dataset, model, config, random_state):
 
     # Loading the base model's state dictionary from the .pth file
     task_encoder_state_dict = torch.load(
-        "source/models/pretrained/" + args.dataset + "/" + args.dataset +
+        "source/models/pretrained/" + args.source_domain + "/" + args.source_domain +
         "-relationnet-" + str(config["num_ways"]) + "way.pth",
         map_location=torch.device('cpu')
     )
@@ -90,12 +96,13 @@ def _run_experiment(dataset, model, config, random_state):
 
     # Defining the output results directory and file name.
     res_directory = directory + config["output_path"]
-    file_name = "npbml-testing-" + args.dataset + "-" + args.model + "-" + \
+    file_name = "npbml-cross-domain-" + args.source_domain + "-" + args.target_domain + "-" + args.model + "-" + \
                 str(config["num_ways"]) + "way-" + str(config["num_shots"]) + "shot-" + str(random_state)
 
     # Creating a results dictionary and recording the start time of the experiment.
     results = {"start_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())}
-    print("meta-testing", args.dataset, args.model, "seed", str(random_state), "started")
+    print("cross domain", args.source_domain, "to", args.target_domain,
+          args.model, "seed", str(random_state), "started")
 
     # Performing the meta-testing phase.
     training_mean, training_ci = _meta_testing(
@@ -107,7 +114,7 @@ def _run_experiment(dataset, model, config, random_state):
     testing_mean, testing_ci = _meta_testing(
         base_model=base_model, base_model_state_dictionary=base_model_state_dictionary,
         loss_function=learned_loss, loss_function_state_dictionary=learned_loss_state_dictionary,
-        dataset=testing,  task_encoder=task_encoder, config=config,
+        dataset=testing, task_encoder=task_encoder, config=config,
         performance_metric=objective_archive[config["evaluation_metric"]]
     )
 
@@ -128,18 +135,18 @@ def _run_experiment(dataset, model, config, random_state):
 
     # Exporting the results to a json file.
     export_results(results, res_directory, file_name)
-    print("meta-testing", args.dataset, args.model, "seed", str(random_state), "complete")
+    print("cross domain", args.source_domain, "to", args.target_domain,
+          args.model, "seed", str(random_state), "complete")
 
 
 def _meta_testing(base_model, base_model_state_dictionary, loss_function, loss_function_state_dictionary,
                   dataset, task_encoder, performance_metric, config):
-
     # Setting the base model to inference mode.
     base_model.eval()
 
     # List for keeping track of the learning history.
     performance_history = []
-    
+
     for _ in (tqdm.tqdm(range(config["test_tasks"]), position=1, dynamic_ncols=True, desc="Validating Performance",
                         disable=True if config["verbose"] <= 1 else False, leave=False)):
 
@@ -166,7 +173,6 @@ def _meta_testing(base_model, base_model_state_dictionary, loss_function, loss_f
 
         # Taking a predetermined number of inner steps before meta update.
         for inner_step in range(config["base_gradient_steps"]):
-
             # Clearing out the gradient cache.
             base_optimizer.zero_grad()
 
@@ -194,19 +200,20 @@ def _meta_testing(base_model, base_model_state_dictionary, loss_function, loss_f
 
 
 # Loading the relevant methods configurations file.
-dataset_config = yaml.safe_load(open(dataset_config_archive[args.dataset]))
+source_domain_config = yaml.safe_load(open(dataset_config_archive[args.source_domain]))
+target_domain_config = yaml.safe_load(open(dataset_config_archive[args.target_domain]))
 method_config = yaml.safe_load(open(method_config_archive["npbml"]))
 
 # Generating the final experimental configurations.
 required_args = {"dataset", "model", "seeds", "device"}
-config = override_configurations(args, args_unknown, required_args, dataset_config, method_config)
+config = override_configurations(args, args_unknown, required_args, target_domain_config, method_config)
 
 # Retrieving the function for the selected dataset.
-dataset_fn = dataset_archive[args.dataset]
+dataset_fn = dataset_archive[args.target_domain]
 
 # Retrieving the function for the selected model.
 model_fn = model_archive[args.model]
 
 # Executing the experiments with the given arguments.
 for random_state in args.seeds:
-    _run_experiment(dataset_fn, model_fn, config, random_state)
+    _run_experiment(dataset_fn, model_fn, source_domain_config, config, random_state)

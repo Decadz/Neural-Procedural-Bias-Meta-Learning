@@ -10,6 +10,6 @@ meta_loss_fn: "celoss"
 base_loss_fn: "celoss"
 
 # Experiment Settings.
-output_path: results/cifarfs/
+output_path: results/cub200/
 input_channels: 3
 verbose: 2

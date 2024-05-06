@@ -2,6 +2,7 @@
 from experiments.resources.datasets import Omniglot
 from experiments.resources.datasets import CIFARFS
 from experiments.resources.datasets import FC100
+from experiments.resources.datasets import CUB200
 from experiments.resources.datasets import MiniImagenet
 from experiments.resources.datasets import TieredImagenet
 
@@ -34,6 +35,7 @@ dataset_archive = {
     "omniglot": Omniglot,
     "fc100": FC100,
     "cifarfs": CIFARFS,
+    "cub200": CUB200,
     "miniimagenet": MiniImagenet,
     "tieredimagenet": TieredImagenet
 }
@@ -42,6 +44,7 @@ dataset_config_archive = {
     "omniglot": dataset_config_path + "omniglot_config.yaml",
     "fc100": dataset_config_path + "fc100_config.yaml",
     "cifarfs": dataset_config_path + "cifarfs_config.yaml",
+    "cub200": dataset_config_path + "cub200_config.yaml",
     "miniimagenet": dataset_config_path + "miniimagenet_config.yaml",
     "tieredimagenet": dataset_config_path + "tieredimagenet_config.yaml",
 }

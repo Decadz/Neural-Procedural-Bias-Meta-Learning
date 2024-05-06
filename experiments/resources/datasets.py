@@ -166,6 +166,63 @@ def FC100(num_ways, num_shots, test_shots, device, pretraining=False, **kwargs):
     return train, val, test
 
 
+def CUB200(num_ways, num_shots, test_shots, device, pretraining=False, **kwargs):
+
+    """
+    The CUB200 dataset (Caltech-UCSD Birds-200-2011 ) is an extended version
+    of CUB-200, a challenging dataset of 200 bird species. There are 140, 30,
+    30 classes in the training, validation, and testing sets, respectively.
+
+    :param num_ways: Number of classes.
+    :param num_shots: Number of training (support) instances.
+    :param test_shots: Number of testing (query) instances.
+    :param device: Device to put data on {"cpu", "cuda", ...}
+    :param pretraining: If pretraining use a different set of transforms.
+    :return: training, validation and testing datasets.
+    """
+
+    # Defining the training transforms when not performing pretraining (i.e. meta learning).
+    if not pretraining:
+        training_transforms = torchvision.transforms.Compose([
+            torchvision.transforms.Resize((84, 84)),
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+
+    else:  # Defining the transforms when performing pretraining.
+        training_transforms = torchvision.transforms.Compose([
+            torchvision.transforms.RandomResizedCrop((84, 84)),
+            torchvision.transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4),
+            torchvision.transforms.RandomHorizontalFlip(),
+            torchvision.transforms.ToTensor(),
+            torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+
+    # Defining the validation and testing transforms.
+    testing_transforms = torchvision.transforms.Compose([
+        torchvision.transforms.Resize((84, 84)),
+        torchvision.transforms.ToTensor(),
+        torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
+
+    # Generating the training, validation, and testing datasets.
+    training = _Dataset("cub200", set_name="train", transforms=training_transforms)
+    validation = _Dataset("cub200", set_name="val", transforms=testing_transforms)
+    testing = _Dataset("cub200", set_name="test", transforms=testing_transforms)
+
+    # Generating the meta-learning task samplers.
+    training_sampler = _TaskSampler(training, num_ways, num_shots, test_shots)
+    validation_sampler = _TaskSampler(validation, num_ways, num_shots, test_shots)
+    testing_sampler = _TaskSampler(testing, num_ways, num_shots, test_shots)
+
+    # Generating a custom dataloaders which process batches.
+    train = _DataLoader(training, training_sampler, device, random_rotation=False)
+    val = _DataLoader(validation, validation_sampler, device, random_rotation=False)
+    test = _DataLoader(testing, testing_sampler, device, random_rotation=False)
+
+    return train, val, test
+
+
 def MiniImagenet(num_ways, num_shots, test_shots, device, pretraining=False, **kwargs):
 
     """

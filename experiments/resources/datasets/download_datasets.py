@@ -8,6 +8,7 @@ import os
 datasets = {
     "omniglot": "https://drive.google.com/uc?id=1HGTYfDMPnNrTVLI0wRPL5S2rrMWtZRYW",
     "miniimagenet": "https://drive.google.com/uc?id=1n9yVi-VoVlLs1VGJvQuHekDK9DHtWGIy",
+    "cub200": "https://drive.google.com/uc?id=1WLwobSGKoOegSSq5Czi5GBrhTo9w0T",
     "fc100": "https://drive.google.com/uc?id=1njMPLaMJ0l21DVSi7X-gBGYZOk_dz20d",
     "cifarfs": "https://drive.google.com/uc?id=1596wnYCH6N-xcOC37apq8LvOg74NeRGI"
 }
