@@ -1,3 +1,6 @@
+# Download the required datasets (not including tiered-ImageNet)
+python experiments/resources/datasets/download_datasets.py
+
 # MiniImageNet 4-CONV 5-way 5-shot and 5-way 1-shot experiments.
 python experiments/run_pretraining.py --dataset miniimagenet --model adaconv128 --seeds 0 --device cuda:0
 python experiments/run_relation.py --dataset miniimagenet --model relationnet --seeds 0 --device cuda:0
