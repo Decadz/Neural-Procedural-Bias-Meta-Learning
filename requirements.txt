@@ -6,7 +6,7 @@ setuptools==51.0.0
 six==1.15.0
 torch~=2.0.1+cu117
 torchvision~=0.15.2+cu117
-tqdm==4.54.1
+tqdm==4.66.4
 argparse~=1.4.0
 Pillow~=9.0.1
 gdown~=4.7.1

@@ -9,15 +9,23 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def main():
     plot_learning_curve()
-    #plot_pretraining_learning_curve()
+    plot_pretraining_learning_curve()
 
 
 def plot_learning_curve():
 
     paths = [
-        # Weight decay
-        "results/miniimagenet/npbml-miniimagenet-adaresnet-5way-5shot-100.json",
-        "results/miniimagenet/npbml-miniimagenet-adaresnet-5way-5shot-101.json",
+        "results/miniimagenet/npbml-miniimagenet-adaconv128-5way-5shot-0.json",
+        "results/miniimagenet/npbml-miniimagenet-adaconv128-5way-1shot-0.json",
+
+        "results/miniimagenet/npbml-miniimagenet-adaresnet-5way-5shot-0.json",
+        "results/miniimagenet/npbml-miniimagenet-adaresnet-5way-1shot-0.json",
+
+        "results/tieredimagenet/npbml-tieredimagenet-adaconv128-5way-5shot-0.json",
+        "results/tieredimagenet/npbml-tieredimagenet-adaconv128-5way-1shot-0.json",
+
+        "results/tieredimagenet/npbml-tieredimagenet-adaresnet-5way-5shot-0.json",
+        "results/tieredimagenet/npbml-tieredimagenet-adaresnet-5way-1shot-0.json",
     ]
 
     # Setting the plot settings.
@@ -42,7 +50,6 @@ def plot_learning_curve():
         plt.plot(np.linspace(0, len(loss), len(loss)), loss, linewidth=3, label=method)
         print("Training:", method, "=", str(round(results["training_mean"], 5)))
         print("Testing:", method, "=", str(round(results["testing_mean"], 5)))
-        print("Min", min(results["meta_training_history"]))
         print()
 
     plt.ylabel("Error")
@@ -55,12 +62,11 @@ def plot_learning_curve():
 def plot_pretraining_learning_curve():
 
     paths = [
-        "results/miniimagenet/pretraining-miniimagenet-adaresnet-5way-14.json",
-        "results/miniimagenet/pretraining-miniimagenet-adaresnet-5way-31.json",
-        "results/miniimagenet/pretraining-miniimagenet-adaresnet-5way-32.json",
-        "results/miniimagenet/pretraining-miniimagenet-adaresnet-5way-33.json",
-        "results/miniimagenet/pretraining-miniimagenet-adaresnet-5way-34.json",
-        "results/miniimagenet/pretraining-miniimagenet-adaresnet-5way-35.json",
+        "results/miniimagenet/pretraining-miniimagenet-adaconv128-5way.json",
+        "results/miniimagenet/pretraining-miniimagenet-adaresnet-5way.json",
+
+        "results/tieredimagenet/pretraining-tieredimagenet-adaconv128-5way.json",
+        "results/tieredimagenet/pretraining-tieredimagenet-adaresnet-5way.json",
     ]
 
     # Setting the plot settings.
@@ -70,7 +76,7 @@ def plot_pretraining_learning_curve():
     plt.rcParams["figure.figsize"] = (4.25, 5)  # (8, 4.5)
 
     # Name of the methods and their respective plotting colors.
-    method_names = ["control", "31 - 0.05", "32 - 0.1", "33 - 0.15", "34 - 0.2", "35 - 0.25"]
+    method_names = ["1", "2", "3", "4"]
 
     # Iterating over the different methods.
     for path, method in zip(paths, method_names):

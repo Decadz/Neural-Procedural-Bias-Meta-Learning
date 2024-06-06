@@ -1,4 +1,4 @@
-# Meta Transfer Learning (Initialization).
+# Pretraining training Settings.
 pretraining_gradient_steps: 200000
 pretraining_batch_size: 128
 
