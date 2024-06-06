@@ -32,9 +32,9 @@ Alternatively, you can download the models used in our experiments from the foll
 
 2. Following this, a few-shot learning task can be executed via the following terminal command:
 ```
-python experiments/run_online.py --dataset dataset_name --model model_name --seeds [seeds] --device device
+python experiments/run_npbml.py --dataset dataset_name --model model_name --num_ways N --num_shots M --seeds [seeds] --device device
 ```
-The results for the experiment will be output as a .json file which can be found in ../experiments/results/dataset_name/. Note, our experiments natively report the error rate metric, *i.e.*, 1-accuracy.
+After the experiment has finished the results will be output into a .json file which can be found in the following directory "../experiments/results/dataset_name/". Note, our experiments natively report the error rate metric, *i.e.*, 1-accuracy.
 
 ### Code Reproducibility: 
 
