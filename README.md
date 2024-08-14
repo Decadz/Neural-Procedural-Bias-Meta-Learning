@@ -26,20 +26,18 @@ pip install requirements.txt
 python experiments/resources/datasets/download_datasets.py
 ```
 
-2. To run the NPBML algorithm you will first need to pretrain the backbone encoder and relation network. To do this run the following commands via the terminal command (you can find a list of the available arguments in the following files [[1]](https://github.com/Decadz/Neural-Procedural-Bias-Meta-Learning/blob/main/experiments/resources/__init__.py) and [[2]](https://github.com/Decadz/Neural-Procedural-Bias-Meta-Learning/blob/main/source/__init__.py)):
+2. To run the NPBML algorithm you will first need to pretrain the backbone encoder and relation network. To do this run the following commands via the terminal command (you can find a list of the available arguments in the following files [[1]](https://github.com/Decadz/Neural-Procedural-Bias-Meta-Learning/blob/main/experiments/resources/__init__.py) and [[2]](https://github.com/Decadz/Neural-Procedural-Bias-Meta-Learning/blob/main/source/__init__.py)). Alternatively, you can download the models used in our experiments from the following Google Drive [link](https://drive.google.com/drive/folders/1496Z8XcwhhTaBUI5Ay2bt9OH9FszsMHU?usp=drive_link).
 ```
 python experiments/run_pretraining.py --dataset dataset_name --model model_name --seeds [seeds] --device device
 ```
 ```
 python experiments/run_relation.py --dataset dataset_name --model model_name --seeds [seeds] --device device
 ```
-Alternatively, you can download the models used in our experiments from the following Google Drive [link](https://drive.google.com/drive/folders/1496Z8XcwhhTaBUI5Ay2bt9OH9FszsMHU?usp=drive_link).
 
-3. Following this, a few-shot learning task can be executed via the following terminal command:
+3. Following this, a few-shot learning task can be executed via the following terminal command. After the experiment has finished the results will be output into a .json file which can be found in the following directory "../experiments/results/dataset_name/". Note, our experiments natively report the error rate metric, *i.e.*, 1-accuracy.
 ```
 python experiments/run_npbml.py --dataset dataset_name --model model_name --num_ways N --num_shots M --seeds [seeds] --device device
 ```
-After the experiment has finished the results will be output into a .json file which can be found in the following directory "../experiments/results/dataset_name/". Note, our experiments natively report the error rate metric, *i.e.*, 1-accuracy.
 
 ### Code Reproducibility: 
 
