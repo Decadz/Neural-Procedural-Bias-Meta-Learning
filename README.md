@@ -21,16 +21,21 @@ pip install requirements.txt
 
 ## Usage
 
-1. To run the NPBML algorithm you will first need to pretrain the backbone encoder and relation network. To do this run the following commands via the terminal command (you can find a list of the available arguments in the following files [[1]](https://github.com/Decadz/Neural-Procedural-Bias-Meta-Learning/blob/main/experiments/resources/__init__.py) and [[2]](https://github.com/Decadz/Neural-Procedural-Bias-Meta-Learning/blob/main/source/__init__.py)):
+1. Download the desired meta-learning datasets and place them in the "../experiments/resources/datasets/" folder. Each dataset should include "train", "val", and "test" subfolders. All datasets are available via the provided Google Drive [link](https://drive.google.com/drive/folders/1rIkInpp1NBnDytsKOLOFw_Sm5B2Fsxtk?usp=drive_link), except for TieredImageNet, which has a separate download [link](https://lyy.mpi-inf.mpg.de/mtl/download/Lmzjm9tX.html). To automatically download all datasets except TieredImageNet, run the provided script:
+```
+python experiments/resources/datasets/download_datasets.py
+```
+
+2. To run the NPBML algorithm you will first need to pretrain the backbone encoder and relation network. To do this run the following commands via the terminal command (you can find a list of the available arguments in the following files [[1]](https://github.com/Decadz/Neural-Procedural-Bias-Meta-Learning/blob/main/experiments/resources/__init__.py) and [[2]](https://github.com/Decadz/Neural-Procedural-Bias-Meta-Learning/blob/main/source/__init__.py)):
 ```
 python experiments/run_pretraining.py --dataset dataset_name --model model_name --seeds [seeds] --device device
 ```
 ```
 python experiments/run_relation.py --dataset dataset_name --model model_name --seeds [seeds] --device device
 ```
-Alternatively, you can download the models used in our experiments from the following link.
+Alternatively, you can download the models used in our experiments from the following Google Drive [link](https://drive.google.com/drive/folders/1496Z8XcwhhTaBUI5Ay2bt9OH9FszsMHU?usp=drive_link).
 
-2. Following this, a few-shot learning task can be executed via the following terminal command:
+3. Following this, a few-shot learning task can be executed via the following terminal command:
 ```
 python experiments/run_npbml.py --dataset dataset_name --model model_name --num_ways N --num_shots M --seeds [seeds] --device device
 ```
@@ -40,7 +45,7 @@ After the experiment has finished the results will be output into a .json file w
 
 The code has not been comprehensively checked and re-run since refactoring. If you're having any issues, find a problem/bug or cannot reproduce similar results as the paper please [open an issue](https://github.com/Decadz/Neural-Procedural-Bias-Meta-Learning/issues) or email me.
 
-## Reference
+## References
 
 If you use our library or find our research of value please consider citing our paper with the following Bibtex entry:
 
